@@ -39,6 +39,12 @@ On Windows, keep the checkout in a folder whose path has only ASCII characters. 
 - `tests/unit/` tests pure functions: the engine, operators, path checks, loader, redaction and the CLI. No processes.
 - `tests/integration/` runs the proxy against `tests/fixtures/fake_server.py`, a tiny stdio MCP server that records every line it receives, so tests can prove a blocked call never reached it. `test_cli_run.py` starts `mcp-leash run` as a real process.
 
+- `tests/realserver/` runs the `project` template in front of the real filesystem MCP server, downloaded with `npx`. These tests need Node.js and network access, so they are skipped unless you opt in:
+
+  ```bash
+  MCP_LEASH_REAL_SERVERS=1 uv run pytest tests/realserver
+  ```
+
 Every policy behaviour needs a test. Prefer table-driven tests with `pytest.mark.parametrize`.
 
 ## Adding an operator
