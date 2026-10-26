@@ -6,7 +6,7 @@ from collections.abc import Callable
 from typing import Any
 
 from mcp_leash.proxy import Proxy, Relay, exit_code_from, resolve_command
-from tests.integration.support import FAKE_SERVER, MemoryClient
+from tests.integration.support import FAKE_SERVER, MemoryClient, allow_all
 
 StartSession = Callable[..., Any]
 
@@ -99,7 +99,7 @@ async def test_server_crash_ends_proxy_with_its_code(start_session: StartSession
 
 async def test_request_stop_terminates_server(fake_server_command: list[str]) -> None:
     client = MemoryClient()
-    proxy = Proxy(fake_server_command, Relay())
+    proxy = Proxy(fake_server_command, Relay(allow_all()))
     task = asyncio.create_task(proxy.run(client))
     client.send({"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
     await client.receive()
@@ -110,7 +110,7 @@ async def test_request_stop_terminates_server(fake_server_command: list[str]) ->
 
 async def test_missing_server_command_exits_127() -> None:
     client = MemoryClient()
-    proxy = Proxy(["definitely-not-a-real-command-mcp-leash"], Relay())
+    proxy = Proxy(["definitely-not-a-real-command-mcp-leash"], Relay(allow_all()))
     assert await proxy.run(client) == 127
 
 
