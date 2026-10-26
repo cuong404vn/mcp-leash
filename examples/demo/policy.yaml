@@ -1,0 +1,17 @@
+# The policy used by make_demo_gif.py.
+version: 1
+default: deny
+audit:
+  path: ./audit.jsonl
+rules:
+  - id: no-deletes
+    tools: ['delete_*']
+    action: deny
+    reason: Deleting files is not permitted for agents.
+
+  - id: read-inside-project
+    tools: ['read_file', 'list_directory']
+    action: allow
+    when:
+      - arg: path
+        within: ['${PROJECT_DIR}']

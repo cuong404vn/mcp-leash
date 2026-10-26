@@ -19,7 +19,9 @@ AI agent ngày càng được cấp nhiều quyền (đọc ghi file, chạy she
 
 ## Demo
 
-Agent thử xoá một file. mcp-leash trả lời thay cho server, và model đọc được lý do:
+![Agent thử xoá file và đọc file ngoài dự án; mcp-leash chặn cả hai, cho phép đọc file trong dự án, và ghi log mọi quyết định](https://raw.githubusercontent.com/cuong404vn/mcp-leash/main/docs/demo.gif)
+
+Đây là một lần chạy thật, được ghi lại bằng [`examples/demo/make_demo_gif.py`](https://github.com/cuong404vn/mcp-leash/blob/main/examples/demo/make_demo_gif.py). Khi một lệnh gọi bị chặn, mcp-leash trả lời thay cho server, và model đọc được lý do:
 
 ```text
 agent  → tools/call delete_file {"path": "/home/me/project/notes.txt"}

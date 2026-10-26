@@ -19,7 +19,9 @@ AI agents get broad tool access (files, shell, GitHub, databases), and a prompt 
 
 ## Demo
 
-The agent tries to delete a file. mcp-leash answers in place of the server, and the model reads why:
+![An agent tries to delete a file and read outside the project; mcp-leash blocks both, allows a read inside the project, and logs every decision](https://raw.githubusercontent.com/cuong404vn/mcp-leash/main/docs/demo.gif)
+
+This is a real run, recorded by [`examples/demo/make_demo_gif.py`](https://github.com/cuong404vn/mcp-leash/blob/main/examples/demo/make_demo_gif.py). When a call is blocked, mcp-leash answers in place of the server, and the model reads why:
 
 ```text
 agent  → tools/call delete_file {"path": "/home/me/project/notes.txt"}
