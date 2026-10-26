@@ -198,8 +198,10 @@ Comparison is by JSON type: `1` equals `1.0`, but `1` does not equal `true` or `
 
 ```yaml
 - arg: '*'
-  matches: '(?i)(api[_-]?key|secret|BEGIN [A-Z ]*PRIVATE KEY)'
+  matches: 'BEGIN [A-Z ]*PRIVATE KEY'
 ```
+
+Match the shape of the value you want to stop, not a word. A pattern like `secret` also matches `secret.txt` and `secrets_manager.py`, which blocks ordinary file access. The `no-credentials-in-arguments` rule in the shipped templates shows a pattern that matches `key=value` pairs with a long value, private keys, and GitHub, OpenAI and AWS key formats.
 
 The pattern uses Python [`re`](https://docs.python.org/3/library/re.html) syntax and is checked when the policy loads; an invalid pattern is a validation error. `re.search` matches anywhere in the string, so anchor with `^` and `$` when you mean the whole value. Use `(?i)` for case-insensitive matching. Write patterns in single quotes so YAML keeps backslashes as they are.
 
