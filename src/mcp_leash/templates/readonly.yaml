@@ -1,0 +1,39 @@
+# mcp-leash policy: read-only access to the project directory.
+# Reference: https://github.com/cuong404vn/mcp-leash/blob/main/docs/policy-reference.md
+#
+# ${PROJECT_DIR} is the directory given with --project-dir (default: the
+# directory mcp-leash was started from). Rules are checked top to bottom and
+# the first match wins.
+version: 1
+default: deny                # block anything no rule allows
+hide_denied_tools: true      # hide tools that can never run from the agent
+audit:
+  path: ~/.mcp-leash/audit.jsonl
+  redact_keys: [token, password, api_key, authorization, secret]
+rules:
+  - id: no-writes
+    tools: ['write_*', 'edit_*', 'create_*', 'move_*', 'delete_*', 'remove_*', 'rm']
+    action: deny
+    reason: This policy is read-only.
+
+  - id: no-credentials-in-arguments
+    tools: ['*']
+    action: deny
+    when:
+      - arg: '*'
+        matches: '(?i)(api[_-]?key|secret|BEGIN [A-Z ]*PRIVATE KEY)'
+    reason: Arguments look like they contain a credential.
+
+  - id: read-inside-project
+    tools:
+      - read_file
+      - read_text_file
+      - list_directory
+      - list_directory_with_sizes
+      - directory_tree
+      - search_files
+      - get_file_info
+    action: allow
+    when:
+      - arg: path
+        within: ['${PROJECT_DIR}']

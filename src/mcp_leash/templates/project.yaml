@@ -1,0 +1,64 @@
+# mcp-leash policy: read and write inside the project, never delete, never
+# touch .env files or the .git directory.
+# Reference: https://github.com/cuong404vn/mcp-leash/blob/main/docs/policy-reference.md
+#
+# ${PROJECT_DIR} is the directory given with --project-dir (default: the
+# directory mcp-leash was started from). Rules are checked top to bottom and
+# the first match wins.
+version: 1
+default: deny                # block anything no rule allows
+hide_denied_tools: true      # hide tools that can never run from the agent
+audit:
+  path: ~/.mcp-leash/audit.jsonl
+  redact_keys: [token, password, api_key, authorization, secret]
+rules:
+  - id: no-deletes
+    tools: ['delete_*', 'remove_*', 'rm']
+    action: deny
+    reason: Deleting files is not permitted for agents.
+
+  - id: no-credentials-in-arguments
+    tools: ['*']
+    action: deny
+    when:
+      - arg: '*'
+        matches: '(?i)(api[_-]?key|secret|BEGIN [A-Z ]*PRIVATE KEY)'
+    reason: Arguments look like they contain a credential.
+
+  - id: no-env-or-git-internals
+    tools: ['*']
+    action: deny
+    when:
+      - arg: '*'
+        matches: '(?i)(^|[\\/])(\.env(\.[^\\/]*)?|\.git)([\\/]|$)'
+    reason: .env files and the .git directory are off limits.
+
+  - id: read-inside-project
+    tools:
+      - read_file
+      - read_text_file
+      - list_directory
+      - list_directory_with_sizes
+      - directory_tree
+      - search_files
+      - get_file_info
+    action: allow
+    when:
+      - arg: path
+        within: ['${PROJECT_DIR}']
+
+  - id: write-inside-project
+    tools: ['write_file', 'edit_file', 'create_directory']
+    action: allow
+    when:
+      - arg: path
+        within: ['${PROJECT_DIR}']
+
+  - id: move-inside-project
+    tools: ['move_file']
+    action: allow
+    when:
+      - arg: source
+        within: ['${PROJECT_DIR}']
+      - arg: destination
+        within: ['${PROJECT_DIR}']

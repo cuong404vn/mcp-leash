@@ -1,0 +1,36 @@
+# mcp-leash example policy (the one used in the docs).
+# Reference: https://github.com/cuong404vn/mcp-leash/blob/main/docs/policy-reference.md
+version: 1
+default: deny                # action when no rule matches: allow | deny
+hide_denied_tools: true      # drop always-denied tools from tools/list responses
+audit:
+  path: ./mcp-leash-audit.jsonl
+  redact_keys: [token, password, api_key, authorization, secret]
+rules:
+  # Deny rules first, because the first match wins.
+  - id: no-deletes
+    tools: ['delete_*', 'remove_*', 'rm']
+    action: deny
+    reason: Deleting files is not permitted for agents.
+
+  - id: no-credentials-in-arguments
+    tools: ['*']
+    action: deny
+    when:
+      - arg: '*'
+        matches: '(?i)(api[_-]?key|secret|BEGIN [A-Z ]*PRIVATE KEY)'
+    reason: Arguments look like they contain a credential.
+
+  - id: read-inside-project
+    tools: ['read_file', 'list_directory', 'search_files']
+    action: allow
+    when:
+      - arg: path
+        within: ['${PROJECT_DIR}']
+
+  - id: write-only-src-and-docs
+    tools: ['write_file', 'edit_file']
+    action: allow
+    when:
+      - arg: path
+        within: ['${PROJECT_DIR}/src', '${PROJECT_DIR}/docs']
