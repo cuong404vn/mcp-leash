@@ -1,7 +1,8 @@
 """A tiny stdio MCP server used by the integration tests.
 
 Every raw line it receives is appended to the file named by ``FAKE_SERVER_RECORD``
-(when set), so tests can prove that a blocked call never reached the server.
+(when set), so tests can prove that a blocked call never reached the server. Its process id
+is written to ``FAKE_SERVER_PID_FILE`` (when set).
 
 Tools: ``read_file``, ``write_file``, ``delete_file`` and ``echo`` echo their
 arguments; ``fail`` returns ``isError``; ``big`` returns ``size`` characters;
@@ -63,6 +64,10 @@ def handle(message: dict[str, Any]) -> None:
 
 
 def main() -> None:
+    pid_file = os.environ.get("FAKE_SERVER_PID_FILE")
+    if pid_file:
+        with open(pid_file, "w") as f:
+            f.write(str(os.getpid()))
     for line in sys.stdin.buffer:
         record(line)
         try:
