@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 
 from mcp_leash.proxy import Proxy, Relay
-from tests.integration.support import FAKE_SERVER, TIMEOUT, MemoryClient, Session
+from tests.integration.support import FAKE_SERVER, TIMEOUT, MemoryClient, Session, allow_all
 
 
 @pytest.fixture
@@ -27,7 +27,7 @@ async def start_session(
 
     async def start(relay: Relay | None = None, **proxy_kwargs: Any) -> Session:
         client = MemoryClient()
-        proxy = Proxy(fake_server_command, relay or Relay(), **proxy_kwargs)
+        proxy = Proxy(fake_server_command, relay or Relay(allow_all()), **proxy_kwargs)
         session = Session(client, asyncio.create_task(proxy.run(client)), record)
         sessions.append(session)
         return session

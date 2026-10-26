@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 import logging
 import os
 import queue
@@ -11,16 +12,21 @@ import shutil
 import signal
 import sys
 import threading
+import time
 from collections.abc import Callable, Sequence
-from typing import Literal, Protocol
+from typing import Any, Literal, Protocol
 
+from mcp_leash.audit import AuditLog
 from mcp_leash.jsonrpc import (
     DEFAULT_MAX_LINE_BYTES,
     InvalidMessageError,
     LineFramer,
     Oversized,
+    blocked_result,
+    dump_line,
     parse_strict,
 )
+from mcp_leash.policy import Decision, Policy, always_denied, evaluate
 
 logger = logging.getLogger("mcp_leash")
 
@@ -48,27 +54,167 @@ class ClientChannel(Protocol):
         ...
 
 
+def _id_key(request_id: Any) -> str:
+    return json.dumps(request_id, sort_keys=True)
+
+
+def _blocked_text(decision: Decision) -> str:
+    reason = decision.reason
+    if reason is None:
+        reason = "No rule allows this call." if decision.rule == "default" else "Denied by policy."
+    return f"Blocked by mcp-leash (rule {decision.rule}): {reason}"
+
+
 class Relay:
-    """Decide what happens to every line passing through the proxy."""
+    """Decide what happens to every line passing through the proxy.
+
+    Only ``tools/call`` requests from the client are evaluated. Everything else
+    is forwarded unchanged, except that ``tools/list`` responses lose the tools
+    a rule always denies when ``hide_denied_tools`` is on.
+    """
+
+    def __init__(
+        self,
+        policy: Policy,
+        audit: AuditLog | None = None,
+        *,
+        dry_run: bool = False,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
+        self._policy = policy
+        self._audit = audit
+        self._dry_run = dry_run
+        self._clock = clock
+        self._pending_calls: dict[str, tuple[Any, str, float]] = {}
+        self._pending_lists: set[str] = set()
 
     def from_client(self, line: bytes) -> list[Outgoing]:
         """Handle one line from the client and return what to send where."""
         if not line.strip():
             return []
         try:
-            parse_strict(line)
+            message = parse_strict(line)
         except InvalidMessageError as exc:
-            logger.warning("dropped invalid message from client: %s", exc)
+            self._invalid("client", str(exc))
             return []
-        return [("server", line + b"\n")]
+        forward: list[Outgoing] = [("server", line + b"\n")]
+        if isinstance(message, list):
+            if any(isinstance(m, dict) and m.get("method") == "tools/call" for m in message):
+                self._invalid("client", "a JSON-RPC batch containing tools/call is not supported")
+                return []
+            return forward
+        if not isinstance(message, dict):
+            return forward
+        method = message.get("method")
+        if method == "tools/call":
+            return self._tool_call(message, line)
+        if method == "tools/list" and "id" in message:
+            self._pending_lists.add(_id_key(message["id"]))
+        elif method == "notifications/cancelled":
+            params = message.get("params")
+            if isinstance(params, dict) and "requestId" in params:
+                self._pending_calls.pop(_id_key(params["requestId"]), None)
+        return forward
 
     def from_server(self, line: bytes) -> list[Outgoing]:
         """Handle one line from the server and return what to send where."""
-        return [("client", line + b"\n")]
+        forward: list[Outgoing] = [("client", line + b"\n")]
+        if not self._pending_calls and not self._pending_lists:
+            return forward
+        try:
+            message = parse_strict(line)
+        except InvalidMessageError:
+            return forward
+        if not isinstance(message, dict) or "method" in message or "id" not in message:
+            return forward
+        key = _id_key(message["id"])
+        if key in self._pending_calls:
+            request_id, tool, started = self._pending_calls.pop(key)
+            result = message.get("result")
+            is_error = "error" in message or (
+                isinstance(result, dict) and result.get("isError") is True
+            )
+            latency_ms = round((self._clock() - started) * 1000)
+            self._record(lambda a: a.tool_result(request_id, tool, is_error, latency_ms))
+        elif key in self._pending_lists:
+            self._pending_lists.discard(key)
+            filtered = self._hide_denied_tools(message)
+            if filtered is not None:
+                return [("client", dump_line(filtered))]
+        return forward
 
     def oversized(self, source: Target, size: int) -> None:
         """Record a line that was dropped for exceeding the size limit."""
-        logger.warning("dropped %d-byte message from %s: line size limit exceeded", size, source)
+        self._invalid(source, f"{size}-byte line exceeds the size limit")
+
+    def _tool_call(self, message: dict[str, Any], line: bytes) -> list[Outgoing]:
+        request_id = message.get("id")
+        params = message.get("params")
+        tool = params.get("name") if isinstance(params, dict) else None
+        arguments = params.get("arguments") if isinstance(params, dict) else None
+        if arguments is None:
+            arguments = {}
+        if isinstance(tool, str) and isinstance(arguments, dict):
+            decision = evaluate(self._policy, tool, arguments)
+        else:
+            decision = Decision("deny", "invalid-request", "The tools/call request is malformed.")
+            tool = tool if isinstance(tool, str) else ""
+            arguments = params
+        outcome = "would_deny" if self._dry_run and not decision.allowed else decision.action
+
+        recorded = self._record(
+            lambda a: a.tool_call(
+                request_id, tool, outcome, decision.rule, decision.reason, arguments
+            )
+        )
+        if not recorded and outcome == "allow":
+            decision = Decision("deny", decision.rule, "The audit log could not be written.")
+            outcome = "deny"
+
+        if outcome == "deny":
+            logger.info("blocked %s (rule %s)", tool, decision.rule)
+            if "id" not in message:
+                return []  # a notification gets no response
+            return [("client", dump_line(blocked_result(request_id, _blocked_text(decision))))]
+        if outcome == "would_deny":
+            logger.info("would block %s (rule %s); forwarding in dry-run mode", tool, decision.rule)
+        if "id" in message:
+            self._pending_calls[_id_key(request_id)] = (request_id, tool, self._clock())
+        return [("server", line + b"\n")]
+
+    def _hide_denied_tools(self, message: dict[str, Any]) -> dict[str, Any] | None:
+        if not self._policy.hide_denied_tools or self._dry_run:
+            return None
+        result = message.get("result")
+        if not isinstance(result, dict) or not isinstance(result.get("tools"), list):
+            return None
+        tools = result["tools"]
+        kept = [
+            t
+            for t in tools
+            if not (
+                isinstance(t, dict)
+                and isinstance(t.get("name"), str)
+                and always_denied(self._policy, t["name"])
+            )
+        ]
+        if len(kept) == len(tools):
+            return None
+        return {**message, "result": {**result, "tools": kept}}
+
+    def _invalid(self, source: Target, error: str) -> None:
+        logger.warning("dropped message from %s: %s", source, error)
+        self._record(lambda a: a.invalid_message(source, error))
+
+    def _record(self, write: Callable[[AuditLog], None]) -> bool:
+        if self._audit is None:
+            return True
+        try:
+            write(self._audit)
+        except (OSError, ValueError) as exc:
+            logger.error("could not write the audit log: %s", exc)
+            return False
+        return True
 
 
 class StdioClient:

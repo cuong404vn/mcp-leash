@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from mcp_leash.policy import Policy, parse_policy
+
 FAKE_SERVER = Path(__file__).parent.parent / "fixtures" / "fake_server.py"
 TIMEOUT = 10.0
 
@@ -72,3 +74,8 @@ class Session:
     async def finish(self) -> int:
         self.client.close_stdin()
         return await asyncio.wait_for(self.task, TIMEOUT)
+
+
+def allow_all() -> Policy:
+    """A policy that allows every call, for pass-through tests."""
+    return parse_policy("version: 1\ndefault: allow\n", env={})
