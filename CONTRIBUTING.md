@@ -15,7 +15,7 @@ uv run mcp-leash --help
 
 ## Running the checks
 
-CI runs these on Linux, macOS and Windows with Python 3.10 to 3.13. Run them before opening a pull request:
+CI runs these on Linux with Python 3.10 to 3.13, and on Windows and macOS with Python 3.13. Run them before opening a pull request:
 
 ```bash
 uv run ruff check
