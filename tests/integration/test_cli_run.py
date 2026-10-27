@@ -141,7 +141,7 @@ def test_run_exits_when_server_crashes(policy_file: Path, env: dict[str, str]) -
     proc.stdin.write(call(1, "crash"))
     proc.stdin.flush()
     assert proc.wait(timeout=60) == 3  # stdin is still open: the proxy must not wait for it
-    proc.stdin.close()
+    # communicate() closes stdin itself; closing it first fails on POSIX before Python 3.13.
     proc.communicate(timeout=10)
 
 
@@ -177,5 +177,4 @@ def test_run_terminates_server_on_signal(
     assert proc.wait(timeout=30) == 128 + signal.SIGTERM  # the server was terminated with SIGTERM
     with pytest.raises(ProcessLookupError):
         os.kill(server_pid, 0)  # no orphan left behind
-    proc.stdin.close()
     proc.communicate(timeout=10)
