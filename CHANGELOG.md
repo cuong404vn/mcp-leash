@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 - `within` accepts a list of paths and checks each one: an allow rule needs every path inside, a deny rule matches if any path is inside, and an empty list never matches.
+- The `readonly` and `project` templates allow `read_multiple_files` when every path is inside the project.
 - `benchmarks/overhead.py` to measure the time mcp-leash adds per call (about 0.5 ms on Windows 11 with the `project` template).
 - Demo GIF in the README, recorded from a real run by `examples/demo/make_demo_gif.py`.
 - `mcp-leash run`: a stdio proxy that checks every `tools/call` against a YAML policy, answers denied calls with an `isError` result and never forwards them.

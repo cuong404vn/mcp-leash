@@ -77,6 +77,20 @@ def test_project_template_blocks_env_and_git(relative: str, project: Path) -> No
         template("project", project), "read_text_file", {"path": str(project / relative)}
     )
     assert decision.rule == "no-env-or-git-internals"
+    paths = [str(project / "a.txt"), str(project / relative)]
+    decision = evaluate(template("project", project), "read_multiple_files", {"paths": paths})
+    assert decision.rule == "no-env-or-git-internals"
+
+
+def resolve(value: Any, project: Path) -> Any:
+    """Replace the IN and OUT placeholders with the project and its parent directory."""
+    if isinstance(value, str):
+        return value.replace("IN", str(project)).replace("OUT", str(project.parent))
+    if isinstance(value, list):
+        return [resolve(item, project) for item in value]
+    if isinstance(value, dict):
+        return {k: resolve(v, project) for k, v in value.items()}
+    return value
 
 
 @pytest.mark.parametrize("name", ["readonly", "project"])
@@ -89,18 +103,18 @@ def test_project_template_blocks_env_and_git(relative: str, project: Path) -> No
         ("search_files", {"path": "IN", "pattern": "*.py"}, True),
         ("read_text_file", {"path": "OUT/a.txt"}, False),
         ("read_text_file", {"path": "IN/../../a.txt"}, False),
-        ("read_multiple_files", {"paths": ["IN/a.txt"]}, False),
+        ("read_multiple_files", {"paths": ["IN/a.txt", "IN/src/b.py"]}, True),
+        ("read_multiple_files", {"paths": ["IN/a.txt", "OUT/a.txt"]}, False),
+        ("read_multiple_files", {"paths": ["IN/src/../../a.txt"]}, False),
+        ("read_multiple_files", {"paths": []}, False),
+        ("read_multiple_files", {"paths": "IN/a.txt"}, True),
+        ("read_multiple_files", {"path": "IN/a.txt"}, False),
     ],
 )
 def test_read_rules(
     name: str, tool: str, arguments: dict[str, Any], allowed: bool, project: Path
 ) -> None:
-    resolved = {
-        k: v.replace("IN", str(project)).replace("OUT", str(project.parent))
-        if isinstance(v, str)
-        else v
-        for k, v in arguments.items()
-    }
+    resolved = resolve(arguments, project)
     assert evaluate(template(name, project), tool, resolved).allowed is allowed
 
 
@@ -119,12 +133,7 @@ def test_read_rules(
 def test_project_template_write_rules(
     tool: str, arguments: dict[str, Any], allowed: bool, project: Path
 ) -> None:
-    resolved = {
-        k: v.replace("IN", str(project)).replace("OUT", str(project.parent))
-        if isinstance(v, str)
-        else v
-        for k, v in arguments.items()
-    }
+    resolved = resolve(arguments, project)
     assert evaluate(template("project", project), tool, resolved).allowed is allowed
 
 

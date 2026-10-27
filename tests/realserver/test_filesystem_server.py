@@ -152,6 +152,26 @@ def test_reads_outside_the_project_are_blocked(
     assert text.startswith(f"Blocked by mcp-leash (rule {rule})")
 
 
+def test_read_multiple_files_needs_every_path_inside(
+    client: Client, dirs: tuple[Path, Path]
+) -> None:
+    project, outside = dirs
+    notes, app = str(project / "notes.txt"), str(project / "src" / "app.py")
+    is_error, text = client.call("read_multiple_files", {"paths": [notes, app]})
+    assert not is_error
+    assert "hello from the project" in text
+    assert "print('hi')" in text
+
+    for path, rule in [
+        (str(outside / "private.txt"), "default"),
+        (str(project / ".." / "outside" / "private.txt"), "default"),
+        (str(project / ".env"), "no-env-or-git-internals"),
+    ]:
+        is_error, text = client.call("read_multiple_files", {"paths": [notes, path]})
+        assert is_error
+        assert text.startswith(f"Blocked by mcp-leash (rule {rule})")
+
+
 def test_writes_follow_the_policy(client: Client, dirs: tuple[Path, Path]) -> None:
     project, outside = dirs
     code = 'API_KEY = os.environ["API_KEY"]\n'

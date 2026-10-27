@@ -31,8 +31,6 @@ rules:
     tools: ['list_allowed_directories']
     action: allow
 
-  # read_multiple_files takes a list of paths, which v0.1 cannot check, so it
-  # stays blocked by the default.
   - id: read-inside-project
     tools:
       - read_file
@@ -46,4 +44,12 @@ rules:
     action: allow
     when:
       - arg: path
+        within: ['${PROJECT_DIR}']
+
+  # read_multiple_files takes a list of paths; every one must be inside.
+  - id: read-many-inside-project
+    tools: ['read_multiple_files']
+    action: allow
+    when:
+      - arg: paths
         within: ['${PROJECT_DIR}']
