@@ -36,6 +36,27 @@ rules:
         matches: '(?i)(^|[\\/])(\.env(\.[^\\/]*)?|\.git)([\\/]|$)'
     reason: .env files and the .git directory are off limits.
 
+  # Some servers decode file: URIs and %-escapes, so src/%2e%2e/%2e%2e/x would
+  # pass `within` here and then open a file outside the project. The official
+  # filesystem server reads both literally, and project paths do not need them.
+  # Only path arguments are checked, so file contents may contain them.
+  - id: no-encoded-paths
+    tools: ['*']
+    action: deny
+    when:
+      - arg: path
+        matches: '(?i)^\s*file:|%[0-9a-f]{2}'
+    reason: 'Paths with a file: URI or %-escapes are not allowed.'
+
+  # The same check for tools that take several paths.
+  - id: no-encoded-paths-multi
+    tools: ['read_multiple_files', 'move_file']
+    action: deny
+    when:
+      - arg: '*'
+        matches: '(?i)^\s*file:|%[0-9a-f]{2}'
+    reason: 'Paths with a file: URI or %-escapes are not allowed.'
+
   - id: list-allowed-directories
     tools: ['list_allowed_directories']
     action: allow

@@ -27,6 +27,26 @@ rules:
         matches: '(?i)((api[_-]?key|secret|token|passw(or)?d)["'']?\s*[:=]\s*["'']?[A-Za-z0-9_\-/+=]{12,}|BEGIN [A-Z ]*PRIVATE KEY|\b(gh[pousr]_[A-Za-z0-9]{30,}|sk-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16})\b)'
     reason: Arguments look like they contain a credential.
 
+  # Some servers decode file: URIs and %-escapes, so src/%2e%2e/%2e%2e/x would
+  # pass `within` here and then open a file outside the project. The official
+  # filesystem server reads both literally, and project paths do not need them.
+  - id: no-encoded-paths
+    tools: ['*']
+    action: deny
+    when:
+      - arg: path
+        matches: '(?i)^\s*file:|%[0-9a-f]{2}'
+    reason: 'Paths with a file: URI or %-escapes are not allowed.'
+
+  # The same check for tools that take several paths.
+  - id: no-encoded-paths-multi
+    tools: ['read_multiple_files']
+    action: deny
+    when:
+      - arg: '*'
+        matches: '(?i)^\s*file:|%[0-9a-f]{2}'
+    reason: 'Paths with a file: URI or %-escapes are not allowed.'
+
   - id: list-allowed-directories
     tools: ['list_allowed_directories']
     action: allow

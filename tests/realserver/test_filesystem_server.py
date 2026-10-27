@@ -172,6 +172,34 @@ def test_read_multiple_files_needs_every_path_inside(
         assert text.startswith(f"Blocked by mcp-leash (rule {rule})")
 
 
+def test_encoded_paths_are_blocked_before_the_server(
+    client: Client, dirs: tuple[Path, Path]
+) -> None:
+    project, _ = dirs
+    notes = str(project / "notes.txt")
+    cases: list[tuple[str, dict[str, Any], str]] = [
+        ("read_text_file", {"path": (project / "notes.txt").as_uri()}, "no-encoded-paths"),
+        ("read_text_file", {"path": f"{project / 'src'}/%2e%2e/notes.txt"}, "no-encoded-paths"),
+        ("read_multiple_files", {"paths": [notes, f"{project}/.%65nv"]}, "no-encoded-paths-multi"),
+        (
+            "move_file",
+            {"source": notes, "destination": f"{project}/%2e%2e/notes.txt"},
+            "no-encoded-paths-multi",
+        ),
+    ]
+    for tool, arguments, rule in cases:
+        is_error, text = client.call(tool, arguments)
+        assert is_error
+        assert text.startswith(f"Blocked by mcp-leash (rule {rule})")
+    assert (project / "notes.txt").exists()
+
+    # Only paths are checked: file contents may hold %-escapes and "file:".
+    content = "See https://example.com/a%20b\nfile: notes.txt\n"
+    links = project / "links.txt"
+    assert not client.call("write_file", {"path": str(links), "content": content})[0]
+    assert links.read_bytes() == content.encode()
+
+
 def test_writes_follow_the_policy(client: Client, dirs: tuple[Path, Path]) -> None:
     project, outside = dirs
     code = 'API_KEY = os.environ["API_KEY"]\n'

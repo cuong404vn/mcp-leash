@@ -59,7 +59,7 @@ pipx install git+https://github.com/cuong404vn/mcp-leash
 mcp-leash init --template project
 ```
 
-The `project` template lets the agent read and write inside the project, and blocks deletes, `.env` files, the `.git` directory and arguments that look like credentials. The `readonly` template allows reads only.
+The `project` template lets the agent read and write inside the project, and blocks deletes, `.env` files, the `.git` directory, encoded paths such as `%2e%2e/` or `file:` URIs, and arguments that look like credentials. The `readonly` template allows reads only.
 
 **2. Point your MCP client at mcp-leash.** Prefix the server command with `mcp-leash run --policy FILE --project-dir DIR --`. Always pass `--project-dir`: clients often start servers from `/` or from their own install folder, and `${PROJECT_DIR}` defaults to the directory mcp-leash starts in.
 

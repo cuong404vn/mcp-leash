@@ -109,6 +109,8 @@ def resolve(value: Any, project: Path) -> Any:
         ("read_multiple_files", {"paths": []}, False),
         ("read_multiple_files", {"paths": "IN/a.txt"}, True),
         ("read_multiple_files", {"path": "IN/a.txt"}, False),
+        ("read_text_file", {"path": "IN/100%.txt"}, True),
+        ("read_text_file", {"path": "IN/src/profile.txt"}, True),
     ],
 )
 def test_read_rules(
@@ -116,6 +118,69 @@ def test_read_rules(
 ) -> None:
     resolved = resolve(arguments, project)
     assert evaluate(template(name, project), tool, resolved).allowed is allowed
+
+
+@pytest.mark.parametrize("name", ["readonly", "project"])
+@pytest.mark.parametrize(
+    ("tool", "arguments", "rule"),
+    [
+        ("read_text_file", {"path": "file:///IN/a.txt"}, "no-encoded-paths"),
+        ("read_text_file", {"path": "FILE:IN/a.txt"}, "no-encoded-paths"),
+        ("read_text_file", {"path": " file://IN/a.txt"}, "no-encoded-paths"),
+        ("read_text_file", {"path": "IN/src/%2e%2e/%2e%2e/a.txt"}, "no-encoded-paths"),
+        ("read_text_file", {"path": "IN/.%65nv"}, "no-encoded-paths"),
+        ("list_directory", {"path": "IN/%2E%2E"}, "no-encoded-paths"),
+        ("get_file_info", {"path": "IN%2fa.txt"}, "no-encoded-paths"),
+        (
+            "read_multiple_files",
+            {"paths": ["IN/a.txt", "IN/%2e%2e/b.txt"]},
+            "no-encoded-paths-multi",
+        ),
+        ("read_multiple_files", {"paths": ["file:///IN/a.txt"]}, "no-encoded-paths-multi"),
+    ],
+)
+def test_encoded_paths_are_blocked(
+    name: str, tool: str, arguments: dict[str, Any], rule: str, project: Path
+) -> None:
+    decision = evaluate(template(name, project), tool, resolve(arguments, project))
+    assert (decision.action, decision.rule) == ("deny", rule)
+
+
+@pytest.mark.parametrize(
+    ("tool", "arguments", "rule"),
+    [
+        ("write_file", {"path": "IN/%2e%2e/a.py", "content": "x"}, "no-encoded-paths"),
+        ("edit_file", {"path": "file:///IN/a.py", "edits": []}, "no-encoded-paths"),
+        ("create_directory", {"path": "IN/%2e%2e/new"}, "no-encoded-paths"),
+        (
+            "move_file",
+            {"source": "IN/a.txt", "destination": "IN/%2e%2e/b.txt"},
+            "no-encoded-paths-multi",
+        ),
+        (
+            "move_file",
+            {"source": "file:///IN/a.txt", "destination": "IN/b.txt"},
+            "no-encoded-paths-multi",
+        ),
+    ],
+)
+def test_project_template_blocks_encoded_write_paths(
+    tool: str, arguments: dict[str, Any], rule: str, project: Path
+) -> None:
+    decision = evaluate(template("project", project), tool, resolve(arguments, project))
+    assert (decision.action, decision.rule) == ("deny", rule)
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["url = 'https://example.com/a%20b'", "file: notes.txt", "print('%02x' % n)"],
+)
+def test_encoded_text_in_file_contents_can_be_written(text: str, project: Path) -> None:
+    path = str(project / "src" / "a.py")
+    policy = template("project", project)
+    assert evaluate(policy, "write_file", {"path": path, "content": text}).allowed
+    edits = [{"oldText": "x", "newText": text}]
+    assert evaluate(policy, "edit_file", {"path": path, "edits": edits}).allowed
 
 
 @pytest.mark.parametrize(

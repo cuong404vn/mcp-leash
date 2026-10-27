@@ -59,7 +59,7 @@ pipx install git+https://github.com/cuong404vn/mcp-leash
 mcp-leash init --template project
 ```
 
-Mẫu `project` cho agent đọc và ghi trong thư mục dự án, đồng thời chặn xoá file, chặn đụng vào file `.env`, thư mục `.git` và các tham số trông giống thông tin đăng nhập. Mẫu `readonly` chỉ cho phép đọc.
+Mẫu `project` cho agent đọc và ghi trong thư mục dự án, đồng thời chặn xoá file, chặn đụng vào file `.env` và thư mục `.git`, chặn đường dẫn bị mã hoá như `%2e%2e/` hay `file:`, và chặn các tham số trông giống thông tin đăng nhập. Mẫu `readonly` chỉ cho phép đọc.
 
 **2. Cho MCP client chạy qua mcp-leash.** Thêm `mcp-leash run --policy FILE --project-dir DIR --` vào trước lệnh chạy server. Luôn truyền `--project-dir`: client thường khởi động server từ `/` hoặc thư mục cài đặt của nó, trong khi `${PROJECT_DIR}` mặc định là thư mục mà mcp-leash được khởi động.
 
