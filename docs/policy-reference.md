@@ -167,7 +167,7 @@ Quote `'*'` in YAML, because a bare `*` starts an alias.
 | `in` | list of strings, numbers or booleans | The value equals one of the items. |
 | `starts_with` | string | The value is a string with this prefix. |
 | `matches` | regular expression | Python `re.search` finds the pattern in the string value. |
-| `within` | non-empty list of directories | The value is a path inside one of the directories. |
+| `within` | non-empty list of directories | The value is a path, or a list of paths, inside the directories. |
 
 #### `equals` and `not_equals`
 
@@ -221,13 +221,35 @@ Patterns run on text the agent controls. Avoid nested quantifiers such as `(a+)+
 - `os.path.realpath` is applied to both sides, so `..` segments and symlinks cannot escape.
 - On Windows the comparison is case-insensitive and `\\?\` prefixes are removed. Elsewhere it is case-sensitive.
 - A directory matches itself and everything below it. `/project` does not match `/project2`.
-- If the argument starts with `~`, it must be inside under both readings: with `~` expanded to the home directory, and taken literally as a folder named `~`. Servers differ in how they treat `~`.
+
+Some tools take a list of paths, such as `read_multiple_files` in the official filesystem server. `within` checks every path in the list:
+
+```yaml
+- id: read-many-inside-project
+  tools: ['read_multiple_files']
+  action: allow
+  when:
+    - arg: paths
+      within: ['${PROJECT_DIR}']
+```
+
+##### When a value can be read more than one way
+
+A list of paths is several values, and a path that starts with `~` means two different paths: one with `~` expanded to the home directory, and one with a folder literally named `~` (servers differ in how they treat it). `within` checks every reading, and the rule's action decides how they combine, so an ambiguous value always leans toward deny:
+
+| Rule | Condition holds when |
+| --- | --- |
+| `action: allow` | every path in the list, under every reading, is inside |
+| `action: deny` | any path in the list, under any reading, is inside |
+
+So `read_multiple_files` with one path outside the project does not match an allow rule for the project, and one path in `~/.ssh` is enough to match a deny rule for `~/.ssh`. An empty list never matches.
 
 ### Values that cannot be evaluated
 
 When a condition cannot be evaluated with certainty, the call is denied by the rule being checked, whatever that rule's action is. The reason starts with `Could not evaluate the policy:`. This happens when:
 
-- `starts_with`, `matches` or `within` meets a value that is not a string (for example a list where a path was expected);
+- `starts_with` or `matches` meets a value that is not a string (for example a list where a string was expected);
+- `within` meets a value that is neither a string nor a list of strings (for example a number, an object, or a list that holds one);
 - a path contains a NUL byte or cannot be resolved.
 
 ## Variables

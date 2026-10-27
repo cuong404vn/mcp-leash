@@ -105,6 +105,37 @@ def test_indeterminate_condition_denies_with_that_rule() -> None:
     assert "needs a string" in decision.reason
 
 
+def test_lists_of_paths_lean_toward_deny(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    secrets = project / "secrets"
+    secrets.mkdir(parents=True)
+    policy = parse_policy(
+        "version: 1\ndefault: deny\nrules:\n"
+        "  - id: no-secrets\n    tools: ['*']\n    action: deny\n    when:\n"
+        "      - arg: paths\n        within: ['${PROJECT_DIR}/secrets']\n"
+        "  - id: read-project\n    tools: ['*']\n    action: allow\n    when:\n"
+        "      - arg: paths\n        within: ['${PROJECT_DIR}']\n",
+        project_dir=str(project),
+        env={},
+    )
+
+    def decide(*paths: Any) -> Decision:
+        return evaluate(policy, "read_multiple_files", {"paths": list(paths)})
+
+    readme, key = str(project / "README.md"), str(secrets / "key.pem")
+    assert decide(readme, str(project / "src" / "a.py")).rule == "read-project"
+    # One path in secrets is enough for the deny rule; the allow rule alone would match.
+    assert decide(readme, key).rule == "no-secrets"
+    assert decide(key, readme).rule == "no-secrets"
+    # One path outside the project is enough to miss the allow rule.
+    assert decide(readme, str(tmp_path / "other.txt")) == Decision("deny", "default", None)
+    assert decide() == Decision("deny", "default", None)
+    decision = decide(readme, 5)
+    assert (decision.action, decision.rule) == ("deny", "no-secrets")
+    assert decision.reason is not None
+    assert "needs a path or a list of paths" in decision.reason
+
+
 def test_glob_patterns() -> None:
     policy = make_policy(
         """

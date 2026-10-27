@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `within` accepts a list of paths and checks each one: an allow rule needs every path inside, a deny rule matches if any path is inside, and an empty list never matches.
 - `benchmarks/overhead.py` to measure the time mcp-leash adds per call (about 0.5 ms on Windows 11 with the `project` template).
 - Demo GIF in the README, recorded from a real run by `examples/demo/make_demo_gif.py`.
 - `mcp-leash run`: a stdio proxy that checks every `tools/call` against a YAML policy, answers denied calls with an `isError` result and never forwards them.
@@ -24,6 +25,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- A deny rule with `within` now matches a path starting with `~` if either reading (`~` expanded, or a folder named `~`) is inside. Before, both readings had to be inside, so `~/.ssh/id_rsa` could miss a deny rule for `~/.ssh`. Allow rules still need both.
 - mcp-leash is installed from GitHub (`uv tool install git+https://github.com/cuong404vn/mcp-leash`) and is not published to PyPI. The release workflow creates a GitHub Release only, and the client config examples run the installed `mcp-leash` command instead of `uvx`.
 - The `no-credentials-in-arguments` rule in the templates and the example policy matches secret values (long `key=value` pairs, private keys, GitHub, OpenAI and AWS key formats) instead of words, so files such as `secret.txt` and code such as `os.environ["API_KEY"]` are no longer blocked.
 

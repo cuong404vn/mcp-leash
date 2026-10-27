@@ -86,16 +86,34 @@ def path_candidates(value: str) -> list[str]:
     return candidates
 
 
-def within(value: str, directories: Sequence[str]) -> bool:
-    """True only if every interpretation of ``value`` is inside one of ``directories``.
+def within(value: str, directories: Sequence[str], *, require_all: bool = True) -> bool:
+    """True if ``value`` is inside one of ``directories``.
 
+    With ``require_all`` every interpretation of ``value`` (see
+    :func:`path_candidates`) must be inside; without it one is enough.
     ``directories`` must already be canonical (see :func:`canonical_path`).
     """
     if "\x00" in value:
         raise IndeterminateError("path contains a NUL byte")
-    return all(
+    readings = (
         any(is_inside(canonical_path(candidate), d) for d in directories)
         for candidate in path_candidates(value)
+    )
+    return all(readings) if require_all else any(readings)
+
+
+def _paths(value: Any, condition: Condition) -> list[str]:
+    """The paths ``within`` checks: a single string, or every item of a list of strings."""
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list):
+        if all(isinstance(item, str) for item in value):
+            return value
+        kind = "a list with non-string items"
+    else:
+        kind = type(value).__name__
+    raise IndeterminateError(
+        f"argument {condition.arg!r} is {kind}, but 'within' needs a path or a list of paths"
     )
 
 
@@ -108,8 +126,12 @@ def _require_str(value: Any, condition: Condition) -> str:
     return value
 
 
-def apply_operator(condition: Condition, value: Any) -> bool:
-    """Apply the condition's operator to one argument value."""
+def apply_operator(condition: Condition, value: Any, *, require_all: bool = True) -> bool:
+    """Apply the condition's operator to one argument value.
+
+    ``require_all`` decides how ``within`` treats a value with several readings
+    (see :func:`condition_holds`).
+    """
     if condition.equals is not None:
         return json_equal(value, condition.equals)
     if condition.not_equals is not None:
@@ -121,19 +143,29 @@ def apply_operator(condition: Condition, value: Any) -> bool:
     if condition.matches is not None:
         return re.search(condition.matches, _require_str(value, condition)) is not None
     if condition.within is not None:
-        return within(_require_str(value, condition), condition.within)
+        paths = _paths(value, condition)
+        results = (within(p, condition.within, require_all=require_all) for p in paths)
+        return bool(paths) and (all(results) if require_all else any(results))
     raise IndeterminateError(f"condition on {condition.arg!r} has no operator")
 
 
-def condition_holds(condition: Condition, arguments: Any) -> bool:
+def condition_holds(condition: Condition, arguments: Any, *, require_all: bool = True) -> bool:
     """Evaluate one ``when`` condition against the call's arguments.
 
-    A missing argument makes the condition false. ``arg: '*'`` is true if any
-    string value at any depth satisfies the operator.
+    A missing argument, or an empty list of paths, makes the condition false.
+    ``arg: '*'`` is true if any string value at any depth satisfies the operator.
+
+    ``within`` can read one value several ways: each item of a list of paths,
+    and a path starting with ``~`` both expanded and literally. With
+    ``require_all`` (allow rules) every reading must be inside; without it
+    (deny rules) one is enough, so an ambiguous value always leans toward deny.
     """
     if condition.arg == "*":
-        return any(apply_operator(condition, value) for value in iter_strings(arguments))
+        return any(
+            apply_operator(condition, value, require_all=require_all)
+            for value in iter_strings(arguments)
+        )
     value = select(arguments, condition.arg)
     if value is _MISSING:
         return False
-    return apply_operator(condition, value)
+    return apply_operator(condition, value, require_all=require_all)

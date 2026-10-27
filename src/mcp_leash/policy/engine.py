@@ -33,13 +33,16 @@ def evaluate(policy: Policy, tool: str, arguments: Any) -> Decision:
     """Decide a tool call. The first rule whose tools and conditions all match wins.
 
     If a condition cannot be evaluated with certainty (for example a path that
-    cannot be resolved), the call is denied by that rule.
+    cannot be resolved), the call is denied by that rule. A value that can be
+    read several ways must pass under every reading to match an allow rule, and
+    under any reading to match a deny rule.
     """
     for rule in policy.rules:
         if not tool_matches(rule, tool):
             continue
+        require_all = rule.action == "allow"
         try:
-            matched = all(condition_holds(c, arguments) for c in rule.when)
+            matched = all(condition_holds(c, arguments, require_all=require_all) for c in rule.when)
         except IndeterminateError as exc:
             return Decision("deny", rule.id, f"Could not evaluate the policy: {exc}")
         if matched:

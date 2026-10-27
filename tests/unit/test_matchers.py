@@ -84,9 +84,11 @@ def test_string_operators_reject_non_strings(operator: str, value: Any) -> None:
         condition_holds(cond(arg="a", **{operator: "x"}), {"a": value})
 
 
-def test_within_rejects_non_string() -> None:
-    with pytest.raises(IndeterminateError):
-        condition_holds(cond(arg="a", within=["/"]), {"a": 5})
+@pytest.mark.parametrize("value", [5, None, True, {"x": "/a"}, ["/a", 5], [["/a"]], [None]])
+@pytest.mark.parametrize("require_all", [True, False])
+def test_within_rejects_values_that_are_not_paths(value: Any, require_all: bool) -> None:
+    with pytest.raises(IndeterminateError, match="needs a path or a list of paths"):
+        condition_holds(cond(arg="a", within=["/"]), {"a": value}, require_all=require_all)
 
 
 def test_iter_strings_order_and_depth() -> None:
@@ -171,17 +173,44 @@ def test_within_resolves_relative_paths_against_cwd(
     assert not within("../outside/secret.txt", allowed(root))
 
 
-def test_within_requires_every_tilde_interpretation_inside(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_within_tilde_readings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     root = project(tmp_path)
     monkeypatch.setenv("HOME", str(root))
     monkeypatch.setenv("USERPROFILE", str(root))
     monkeypatch.chdir(tmp_path / "outside")
-    # "~/x" means root/x when expanded, but outside/~/x when taken literally.
+    # "~/x" means root/x when expanded, but outside/~/x when taken literally:
+    # inside for a deny rule, which needs one reading, not for an allow rule.
     assert not within("~/x", allowed(root))
+    assert within("~/x", allowed(root), require_all=False)
+    assert not within("~/x", [canonical_path(str(tmp_path / "elsewhere"))], require_all=False)
     monkeypatch.chdir(root)
     assert within("~/x", allowed(root))
+
+
+@pytest.mark.parametrize(
+    ("names", "allow_rule", "deny_rule"),
+    [
+        (["inside"], True, True),
+        (["inside", "nested"], True, True),
+        (["inside", "outside"], False, True),
+        (["outside", "inside"], False, True),
+        (["outside"], False, False),
+        ([], False, False),
+    ],
+)
+def test_within_checks_every_path_in_a_list(
+    tmp_path: Path, names: list[str], allow_rule: bool, deny_rule: bool
+) -> None:
+    root = project(tmp_path)
+    paths = {
+        "inside": root / "a.txt",
+        "nested": root / "src" / "b.py",
+        "outside": tmp_path / "outside" / "secret.txt",
+    }
+    arguments = {"paths": [str(paths[name]) for name in names]}
+    condition = cond(arg="paths", within=allowed(root))
+    assert condition_holds(condition, arguments, require_all=True) is allow_rule
+    assert condition_holds(condition, arguments, require_all=False) is deny_rule
 
 
 def test_within_nul_byte_is_indeterminate(tmp_path: Path) -> None:
