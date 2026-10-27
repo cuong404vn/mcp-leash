@@ -3,7 +3,6 @@
 **Tường lửa cho các tool của AI agent.** Viết một policy, áp dụng cho mọi MCP server, ghi log mọi lệnh gọi.
 
 [![CI](https://github.com/cuong404vn/mcp-leash/actions/workflows/ci.yml/badge.svg)](https://github.com/cuong404vn/mcp-leash/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/mcp-leash)](https://pypi.org/project/mcp-leash/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/cuong404vn/mcp-leash/blob/main/LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://github.com/cuong404vn/mcp-leash/blob/main/pyproject.toml)
 
@@ -38,18 +37,18 @@ Audit log ghi lại quyết định:
 
 ## Cài đặt
 
+mcp-leash được cài thẳng từ GitHub. Khi máy đã có [uv](https://docs.astral.sh/uv/) và Git:
+
 ```bash
-uvx mcp-leash --help
+uv tool install git+https://github.com/cuong404vn/mcp-leash
 ```
 
-```bash
-pip install mcp-leash
-```
+uv tự chọn bản Python phù hợp và đưa lệnh `mcp-leash` vào PATH. Kiểm tra bằng `mcp-leash --version`, và cập nhật về sau bằng `uv tool upgrade mcp-leash`.
 
-Trong lúc v0.1.0 chưa lên PyPI, cài trực tiếp từ GitHub:
+Nếu không dùng uv, có thể cài bằng [pipx](https://pipx.pypa.io/) (cần Python 3.10 trở lên):
 
 ```bash
-pip install git+https://github.com/cuong404vn/mcp-leash
+pipx install git+https://github.com/cuong404vn/mcp-leash
 ```
 
 ## Bắt đầu nhanh
@@ -70,9 +69,9 @@ Claude Desktop (`claude_desktop_config.json`) và Cursor (`.cursor/mcp.json` ho�
 {
   "mcpServers": {
     "filesystem": {
-      "command": "uvx",
+      "command": "mcp-leash",
       "args": [
-        "mcp-leash", "run",
+        "run",
         "--policy", "/ABSOLUTE/PATH/TO/mcp-leash.yaml",
         "--project-dir", "/ABSOLUTE/PATH/TO/project",
         "--",
@@ -82,6 +81,8 @@ Claude Desktop (`claude_desktop_config.json`) và Cursor (`.cursor/mcp.json` ho�
   }
 }
 ```
+
+Nếu client báo không tìm thấy `mcp-leash` (ứng dụng desktop, nhất là trên macOS, thường không nhận PATH của terminal), hãy đặt `command` là đường dẫn đầy đủ: thư mục mà lệnh `uv tool dir --bin` in ra, nối thêm `mcp-leash` (trên Windows là `mcp-leash.exe`).
 
 File mẫu để sửa: [`examples/claude_desktop_config.json`](https://github.com/cuong404vn/mcp-leash/blob/main/examples/claude_desktop_config.json) và [`examples/cursor_mcp.json`](https://github.com/cuong404vn/mcp-leash/blob/main/examples/cursor_mcp.json).
 

@@ -3,7 +3,6 @@
 **A firewall for your AI agent's tools.** Write one policy, enforce it on any MCP server, audit every call.
 
 [![CI](https://github.com/cuong404vn/mcp-leash/actions/workflows/ci.yml/badge.svg)](https://github.com/cuong404vn/mcp-leash/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/mcp-leash)](https://pypi.org/project/mcp-leash/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/cuong404vn/mcp-leash/blob/main/LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://github.com/cuong404vn/mcp-leash/blob/main/pyproject.toml)
 
@@ -38,18 +37,18 @@ The audit log records the decision:
 
 ## Install
 
+mcp-leash installs straight from GitHub. With [uv](https://docs.astral.sh/uv/) and Git installed:
+
 ```bash
-uvx mcp-leash --help
+uv tool install git+https://github.com/cuong404vn/mcp-leash
 ```
 
-```bash
-pip install mcp-leash
-```
+uv picks a suitable Python and puts the `mcp-leash` command on your PATH. Check it with `mcp-leash --version`, and update later with `uv tool upgrade mcp-leash`.
 
-Until v0.1.0 is published on PyPI, install from GitHub:
+Without uv, [pipx](https://pipx.pypa.io/) works too (Python 3.10 or newer):
 
 ```bash
-pip install git+https://github.com/cuong404vn/mcp-leash
+pipx install git+https://github.com/cuong404vn/mcp-leash
 ```
 
 ## Quickstart
@@ -70,9 +69,9 @@ Claude Desktop (`claude_desktop_config.json`) and Cursor (`.cursor/mcp.json` or 
 {
   "mcpServers": {
     "filesystem": {
-      "command": "uvx",
+      "command": "mcp-leash",
       "args": [
-        "mcp-leash", "run",
+        "run",
         "--policy", "/ABSOLUTE/PATH/TO/mcp-leash.yaml",
         "--project-dir", "/ABSOLUTE/PATH/TO/project",
         "--",
@@ -82,6 +81,8 @@ Claude Desktop (`claude_desktop_config.json`) and Cursor (`.cursor/mcp.json` or 
   }
 }
 ```
+
+If the client reports that it cannot find `mcp-leash` (desktop apps, especially on macOS, often start without your shell's PATH), set `command` to the full path: the folder printed by `uv tool dir --bin`, followed by `mcp-leash` (`mcp-leash.exe` on Windows).
 
 Ready-to-edit files: [`examples/claude_desktop_config.json`](https://github.com/cuong404vn/mcp-leash/blob/main/examples/claude_desktop_config.json) and [`examples/cursor_mcp.json`](https://github.com/cuong404vn/mcp-leash/blob/main/examples/cursor_mcp.json).
 

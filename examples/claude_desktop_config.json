@@ -1,9 +1,8 @@
 {
   "mcpServers": {
     "filesystem": {
-      "command": "uvx",
+      "command": "mcp-leash",
       "args": [
-        "mcp-leash",
         "run",
         "--policy",
         "/ABSOLUTE/PATH/TO/mcp-leash.yaml",
