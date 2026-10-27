@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `benchmarks/overhead.py` to measure the time mcp-leash adds per call (about 0.5 ms on Windows 11 with the `project` template).
 - Demo GIF in the README, recorded from a real run by `examples/demo/make_demo_gif.py`.
 - `mcp-leash run`: a stdio proxy that checks every `tools/call` against a YAML policy, answers denied calls with an `isError` result and never forwards them.
 - Policy engine: ordered rules where the first match wins, glob tool patterns, and the operators `equals`, `not_equals`, `in`, `starts_with`, `matches` and `within`.

@@ -15,6 +15,7 @@ AI agents get broad tool access (files, shell, GitHub, databases), and a prompt 
 - **Readable policy.** A YAML file you can commit, review and share.
 - **Deterministic.** The same call and the same policy always give the same decision. No LLM in the decision path.
 - **Audited.** One JSON line per decision, with secrets redacted.
+- **Low overhead.** About 0.5 ms per call with the `project` template and its audit log (median of 2,000 calls on Windows 11, Python 3.12; [`benchmarks/overhead.py`](https://github.com/cuong404vn/mcp-leash/blob/main/benchmarks/overhead.py)).
 - **Cross-platform.** Windows, macOS and Linux, Python 3.10+.
 
 ## Demo

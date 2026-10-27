@@ -62,6 +62,16 @@ Every policy behaviour needs a test. Prefer table-driven tests with `pytest.mark
 3. Run it against the real server with `--dry-run` and check the audit log: every call you expect to be allowed should say `allow`.
 4. Mention it in `README.md` if it is a policy most users will want.
 
+## Measuring overhead
+
+The spec targets less than 5 ms added per call. `benchmarks/overhead.py` sends the same tools/call requests to the test server directly and through `mcp-leash run` with the `project` template, and prints the difference:
+
+```bash
+uv run python benchmarks/overhead.py
+```
+
+Run it before and after a change to the proxy, the parser or the policy engine.
+
 ## Regenerating the demo GIF
 
 `docs/demo.gif` is a real run of mcp-leash in front of `examples/demo/demo_server.py`. After a change to the output the model sees or to the audit log, record it again:

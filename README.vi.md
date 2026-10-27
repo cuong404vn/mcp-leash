@@ -15,6 +15,7 @@ AI agent ngày càng được cấp nhiều quyền (đọc ghi file, chạy she
 - **Policy dễ đọc.** Một file YAML có thể commit, review và chia sẻ.
 - **Xác định.** Cùng một lệnh gọi và cùng một policy luôn cho cùng một kết quả. Không dùng LLM để ra quyết định.
 - **Có audit log.** Mỗi quyết định là một dòng JSON, thông tin bí mật được che đi.
+- **Nhẹ.** Thêm khoảng 0,5 ms cho mỗi lệnh gọi khi dùng policy mẫu `project` kèm audit log (trung vị của 2.000 lệnh gọi trên Windows 11, Python 3.12; [`benchmarks/overhead.py`](https://github.com/cuong404vn/mcp-leash/blob/main/benchmarks/overhead.py)).
 - **Đa nền tảng.** Windows, macOS và Linux, Python 3.10 trở lên.
 
 ## Demo
