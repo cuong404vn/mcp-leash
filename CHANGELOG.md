@@ -27,6 +27,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- Outside Windows, a deny rule with `within` ignores case and Unicode normalization, so on macOS `~/.SSH/id_rsa` matches a deny rule for `~/.ssh`. Allow rules still compare names exactly, so a path in the wrong case is denied.
 - A deny rule with `within` now matches a path starting with `~` if either reading (`~` expanded, or a folder named `~`) is inside. Before, both readings had to be inside, so `~/.ssh/id_rsa` could miss a deny rule for `~/.ssh`. Allow rules still need both.
 - mcp-leash is installed from GitHub (`uv tool install git+https://github.com/cuong404vn/mcp-leash`) and is not published to PyPI. The release workflow creates a GitHub Release only, and the client config examples run the installed `mcp-leash` command instead of `uvx`.
 - The `no-credentials-in-arguments` rule in the templates and the example policy matches secret values (long `key=value` pairs, private keys, GitHub, OpenAI and AWS key formats) instead of words, so files such as `secret.txt` and code such as `os.environ["API_KEY"]` are no longer blocked.

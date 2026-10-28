@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import re
 import sys
+import unicodedata
 from collections.abc import Iterator, Sequence
 from typing import Any
 
@@ -68,6 +69,11 @@ def canonical_path(path: str) -> str:
     return resolved
 
 
+def fold(path: str) -> str:
+    """Unicode canonical caseless form: names a case-insensitive file system treats as one."""
+    return unicodedata.normalize("NFD", unicodedata.normalize("NFD", path).casefold())
+
+
 def is_inside(path: str, directory: str) -> bool:
     """True if canonical ``path`` equals canonical ``directory`` or lies below it."""
     if path == directory:
@@ -92,12 +98,21 @@ def within(value: str, directories: Sequence[str], *, require_all: bool = True) 
     With ``require_all`` every interpretation of ``value`` (see
     :func:`path_candidates`) must be inside; without it one is enough.
     ``directories`` must already be canonical (see :func:`canonical_path`).
+
+    Outside Windows the file system may or may not ignore case and Unicode
+    normalization (macOS and FAT drives do, most Linux file systems do not),
+    so names that differ only in those ways are another two readings. Exact
+    comparison holds under both, so it is what ``require_all`` uses; without
+    it names are compared folded (see :func:`fold`).
     """
     if "\x00" in value:
         raise IndeterminateError("path contains a NUL byte")
+    folded = not require_all and not IS_WINDOWS
+    if folded:
+        directories = [fold(d) for d in directories]
     readings = (
-        any(is_inside(canonical_path(candidate), d) for d in directories)
-        for candidate in path_candidates(value)
+        any(is_inside(fold(path) if folded else path, d) for d in directories)
+        for path in map(canonical_path, path_candidates(value))
     )
     return all(readings) if require_all else any(readings)
 
@@ -156,7 +171,8 @@ def condition_holds(condition: Condition, arguments: Any, *, require_all: bool =
     ``arg: '*'`` is true if any string value at any depth satisfies the operator.
 
     ``within`` can read one value several ways: each item of a list of paths,
-    and a path starting with ``~`` both expanded and literally. With
+    a path starting with ``~`` both expanded and literally, and outside
+    Windows a name with or without regard to case. With
     ``require_all`` (allow rules) every reading must be inside; without it
     (deny rules) one is enough, so an ambiguous value always leans toward deny.
     """

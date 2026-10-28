@@ -12,6 +12,7 @@ from mcp_leash.policy.matchers import (
     IndeterminateError,
     canonical_path,
     condition_holds,
+    fold,
     is_inside,
     iter_strings,
     json_equal,
@@ -228,8 +229,11 @@ def test_is_inside_root_directory() -> None:
 @windows_only
 def test_within_is_case_insensitive_on_windows(tmp_path: Path) -> None:
     root = project(tmp_path)
-    assert within(str(root).upper() + "\\SRC\\a.py", allowed(root))
-    assert within(str(root).lower().replace("\\", "/") + "/src", allowed(root))
+    for require_all in [True, False]:
+        assert within(str(root).upper() + "\\SRC\\a.py", allowed(root), require_all=require_all)
+        assert within(
+            str(root).lower().replace("\\", "/") + "/src", allowed(root), require_all=require_all
+        )
 
 
 @windows_only
@@ -243,10 +247,34 @@ def test_within_windows_drive_letters(tmp_path: Path) -> None:
 
 
 @posix_only
-def test_within_is_case_sensitive_on_posix(tmp_path: Path) -> None:
+def test_within_case_outside_windows(tmp_path: Path) -> None:
     root = project(tmp_path)
-    upper = str(root.parent / root.name.upper())
-    assert not within(upper + "/src", allowed(root))
+    keys = [canonical_path(str(root / "src"))]
+    for path in [root / "SRC" / "id_rsa", root.parent / root.name.upper() / "Src" / "id_rsa"]:
+        # An allow rule compares names exactly; a deny rule ignores case.
+        assert not within(str(path), keys), path
+        assert within(str(path), keys, require_all=False), path
+    assert within(str(root / "src" / "id_rsa"), keys)
+    assert not within(str(root / "SRCX" / "a"), keys, require_all=False)
+
+
+@posix_only
+def test_within_unicode_normalization_outside_windows(tmp_path: Path) -> None:
+    root = project(tmp_path)
+    secrets = [canonical_path(str(root / "café"))]  # é as one code point
+    decomposed = str(root / "café" / "x")  # e followed by a combining accent
+    assert not within(decomposed, secrets)
+    assert within(decomposed, secrets, require_all=False)
+    assert within(str(root / "CAFÉ" / "x"), secrets, require_all=False)
+
+
+@pytest.mark.parametrize(
+    ("a", "b"),
+    [("ABC", "abc"), ("café", "CAFÉ"), ("Straße", "STRASSE")],
+)
+def test_fold_matches_caseless_names(a: str, b: str) -> None:
+    assert fold(a) == fold(b)
+    assert fold("abc") != fold("abd")
 
 
 def test_within_in_policy_expands_variables(tmp_path: Path) -> None:

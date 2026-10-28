@@ -136,6 +136,24 @@ def test_lists_of_paths_lean_toward_deny(tmp_path: Path) -> None:
     assert "needs a path or a list of paths" in decision.reason
 
 
+def test_deny_rules_ignore_case_on_every_platform(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    (project / ".ssh").mkdir(parents=True)
+    policy = parse_policy(
+        "version: 1\ndefault: deny\nrules:\n"
+        "  - id: no-keys\n    tools: ['*']\n    action: deny\n    when:\n"
+        "      - arg: path\n        within: ['${PROJECT_DIR}/.ssh']\n"
+        "  - id: read-project\n    tools: ['*']\n    action: allow\n    when:\n"
+        "      - arg: path\n        within: ['${PROJECT_DIR}']\n",
+        project_dir=str(project),
+        env={},
+    )
+    for name in [".ssh", ".SSH", ".Ssh"]:
+        decision = evaluate(policy, "read_text_file", {"path": str(project / name / "id_rsa")})
+        assert decision.rule == "no-keys", name
+    assert evaluate(policy, "read_text_file", {"path": str(project / "a.txt")}).allowed
+
+
 def test_glob_patterns() -> None:
     policy = make_policy(
         """

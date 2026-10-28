@@ -219,7 +219,7 @@ Patterns run on text the agent controls. Avoid nested quantifiers such as `(a+)+
 - `~` and `${VAR}` are expanded in the listed directories.
 - Relative paths, in the policy and in the argument, are resolved against the directory mcp-leash starts in.
 - `os.path.realpath` is applied to both sides, so `..` segments and symlinks cannot escape.
-- On Windows the comparison is case-insensitive and `\\?\` prefixes are removed. Elsewhere it is case-sensitive.
+- On Windows the comparison is case-insensitive and `\\?\` prefixes are removed. Elsewhere an allow rule compares names exactly, and a deny rule ignores case and Unicode normalization (see below).
 - A directory matches itself and everything below it. `/project` does not match `/project2`.
 
 Some tools take a list of paths, such as `read_multiple_files` in the official filesystem server. `within` checks every path in the list:
@@ -235,14 +235,14 @@ Some tools take a list of paths, such as `read_multiple_files` in the official f
 
 ##### When a value can be read more than one way
 
-A list of paths is several values, and a path that starts with `~` means two different paths: one with `~` expanded to the home directory, and one with a folder literally named `~` (servers differ in how they treat it). `within` checks every reading, and the rule's action decides how they combine, so an ambiguous value always leans toward deny:
+A list of paths is several values, and a path that starts with `~` means two different paths: one with `~` expanded to the home directory, and one with a folder literally named `~` (servers differ in how they treat it). Outside Windows, `.SSH` and `.ssh`, or `é` written as one character and as `e` plus an accent, are the same folder on macOS and on FAT or exFAT drives, but two folders on most Linux file systems. `within` checks every reading, and the rule's action decides how they combine, so an ambiguous value always leans toward deny:
 
 | Rule | Condition holds when |
 | --- | --- |
 | `action: allow` | every path in the list, under every reading, is inside |
 | `action: deny` | any path in the list, under any reading, is inside |
 
-So `read_multiple_files` with one path outside the project does not match an allow rule for the project, and one path in `~/.ssh` is enough to match a deny rule for `~/.ssh`. An empty list never matches.
+So `read_multiple_files` with one path outside the project does not match an allow rule for the project, and one path in `~/.ssh` is enough to match a deny rule for `~/.ssh`. An empty list never matches. On macOS, a deny rule for `~/.ssh` also matches `~/.SSH/id_rsa`, while an allow rule for `/Users/me/project` does not match `/users/me/project/a.txt`: the call is denied, and the agent has to use the path with its real case.
 
 ### Values that cannot be evaluated
 
