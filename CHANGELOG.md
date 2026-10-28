@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `mcp-leash suggest LOG [--policy FILE]` prints a policy that adds an allow rule for each tool that no rule decided in an audit log, with path arguments kept inside `${PROJECT_DIR}`. The rules of `FILE` come first, unchanged.
 - `arg` can select a list item by index, such as `command.0` for the program in `{"command": ["git", "status"]}`.
 - `starts_with` and `matches` accept a list of strings and check every item: an allow rule needs every item to pass, a deny rule only one. Before, a list could not be evaluated and denied the call.
 - `policies/shell.yaml` for mcp-shell-server (written for v1.1.14): read-only `git` subcommands and `ls`, `cat`, `head`, `tail`, `wc` inside the project; no pipes, chaining, redirection, paths outside the project, `.env` files, or git options that write files or run programs.

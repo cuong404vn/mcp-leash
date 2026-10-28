@@ -104,6 +104,14 @@ reason: Deleting files is not permitted for agents.
 
 To watch what a policy would block before enforcing it, add `--dry-run`: every call is forwarded and the log records `would_deny`.
 
+**4. Fill the gaps from real use.** For a server you do not know yet, run with `--dry-run` for a while, then let mcp-leash turn the log into rules:
+
+```bash
+mcp-leash suggest ~/.mcp-leash/audit.jsonl --policy mcp-leash.yaml --project-dir /ABSOLUTE/PATH/TO/project > suggested.yaml
+```
+
+The output keeps your rules first and adds one allow rule for each tool that no rule decided, with its path arguments kept inside the project. It allows what the agent did, not what it should do, so read it before you use it.
+
 ## Policy
 
 Rules are checked top to bottom and the first match wins. When no rule matches, `default` applies.
@@ -137,6 +145,7 @@ Conditions support `equals`, `not_equals`, `in`, `starts_with`, `matches` (regex
 | `mcp-leash validate FILE` | Check a policy file. Exit 0 if valid, 2 if not |
 | `mcp-leash check FILE --tool NAME --args JSON` | Evaluate one call offline and print the decision |
 | `mcp-leash init [--template readonly\|project]` | Write a starter policy to `mcp-leash.yaml` |
+| `mcp-leash suggest LOG [--policy FILE] [--project-dir DIR]` | Print a policy that allows the calls no rule decided in an audit log |
 
 ## How it works
 

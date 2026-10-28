@@ -104,6 +104,14 @@ reason: Deleting files is not permitted for agents.
 
 Muốn xem policy sẽ chặn những gì trước khi áp dụng thật, thêm `--dry-run`: mọi lệnh gọi vẫn được chuyển tiếp, còn log ghi `would_deny`.
 
+**4. Bổ sung rule từ cách dùng thật.** Với một server bạn chưa rõ, hãy chạy với `--dry-run` một thời gian, rồi để mcp-leash chuyển log thành rule:
+
+```bash
+mcp-leash suggest ~/.mcp-leash/audit.jsonl --policy mcp-leash.yaml --project-dir /ABSOLUTE/PATH/TO/project > suggested.yaml
+```
+
+Kết quả giữ nguyên các rule của bạn ở đầu, rồi thêm một rule allow cho mỗi tool chưa có rule nào quyết định, với tham số đường dẫn bị giới hạn trong thư mục dự án. Nó cho phép những gì agent đã làm, không phải những gì agent nên làm, nên hãy đọc kỹ trước khi dùng.
+
 ## Policy
 
 Các rule được kiểm tra từ trên xuống dưới, rule đầu tiên khớp sẽ quyết định. Nếu không rule nào khớp thì dùng `default`.
@@ -137,6 +145,7 @@ rules:
 | `mcp-leash validate FILE` | Kiểm tra file policy. Trả về 0 nếu hợp lệ, 2 nếu không |
 | `mcp-leash check FILE --tool NAME --args JSON` | Đánh giá thử một lệnh gọi và in ra quyết định |
 | `mcp-leash init [--template readonly\|project]` | Ghi policy mẫu ra `mcp-leash.yaml` |
+| `mcp-leash suggest LOG [--policy FILE] [--project-dir DIR]` | In ra policy cho phép những lệnh gọi chưa có rule nào quyết định trong audit log |
 
 ## Cách hoạt động
 

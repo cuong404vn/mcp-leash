@@ -76,6 +76,17 @@ def _expand_condition(condition: Condition, lookup: Callable[[str], str | None])
     return condition.model_copy(update=update)
 
 
+def read_yaml(text: str) -> dict[str, Any]:
+    """Parse policy YAML into a mapping, rejecting duplicate keys, without validating it."""
+    try:
+        data = yaml.load(text, Loader=_UniqueKeyLoader)
+    except yaml.YAMLError as exc:
+        raise PolicyError(f"invalid YAML: {exc}") from exc
+    if not isinstance(data, dict):
+        raise PolicyError("the policy must be a YAML mapping")
+    return data
+
+
 def _format_validation_error(error: ValidationError) -> str:
     lines = []
     for item in error.errors():
@@ -101,12 +112,7 @@ def parse_policy(
     def lookup(name: str) -> str | None:
         return project if name == "PROJECT_DIR" else environment.get(name)
 
-    try:
-        data = yaml.load(text, Loader=_UniqueKeyLoader)
-    except yaml.YAMLError as exc:
-        raise PolicyError(f"invalid YAML: {exc}") from exc
-    if not isinstance(data, dict):
-        raise PolicyError("the policy must be a YAML mapping")
+    data = read_yaml(text)
     try:
         policy = Policy.model_validate(data)
     except ValidationError as exc:

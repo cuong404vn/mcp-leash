@@ -1,4 +1,4 @@
-"""Command line interface: ``run``, ``validate``, ``check`` and ``init``."""
+"""Command line interface: ``run``, ``validate``, ``check``, ``init`` and ``suggest``."""
 
 import asyncio
 import enum
@@ -14,9 +14,11 @@ import typer
 from mcp_leash import __version__
 from mcp_leash.audit import AuditLog
 from mcp_leash.jsonrpc import InvalidMessageError, parse_strict
-from mcp_leash.policy import Policy, PolicyError, evaluate, load_policy
+from mcp_leash.policy import Policy, PolicyError, evaluate, load_policy, parse_policy
+from mcp_leash.policy.loader import read_yaml
 from mcp_leash.policy.matchers import canonical_path
 from mcp_leash.proxy import Proxy, Relay, serve_stdio
+from mcp_leash.suggest import read_log, render
 
 EXIT_INVALID = 2
 INIT_FILENAME = "mcp-leash.yaml"
@@ -169,6 +171,43 @@ def init(
     )
     target.write_bytes(content)
     typer.echo(f"Wrote {INIT_FILENAME} from the {template.value!r} template.")
+
+
+@app.command()
+def suggest(
+    log: Annotated[
+        Path, typer.Argument(help="Audit log written by run (JSON Lines).", show_default=False)
+    ],
+    policy: Annotated[
+        Path | None,
+        typer.Option(
+            "--policy",
+            "-p",
+            help="Policy to extend: its rules come first, unchanged.",
+            dir_okay=False,
+        ),
+    ] = None,
+    project_dir: ProjectDir = None,
+) -> None:
+    """Print a policy that adds an allow rule for each tool no rule decided in LOG."""
+    project = canonical_path(str(project_dir) if project_dir else os.getcwd())
+    base = None
+    if policy is not None:
+        _load(policy, project_dir)
+        base = read_yaml(policy.read_text(encoding="utf-8-sig"))
+    try:
+        with open(log, encoding="utf-8", errors="replace") as stream:
+            summary = read_log(stream, project)
+    except OSError as exc:
+        raise _fail(f"cannot read the audit log {str(log)!r}: {exc.strerror}") from exc
+    text = render(summary, source=log.name, base=base, base_name=policy.name if policy else None)
+    try:
+        parse_policy(text, project_dir=project)
+    except PolicyError as exc:  # a bug in suggest, not in the user's input
+        raise _fail(f"the suggested policy is not valid; please report this:\n{exc}", 1) from exc
+    typer.echo(text, nl=False)
+    if not summary.undecided:
+        typer.echo("mcp-leash: no call fell to the default rule; nothing to add", err=True)
 
 
 def main() -> None:
