@@ -63,6 +63,8 @@ The `project` template lets the agent read and write inside the project, and blo
 
 For the [GitHub MCP server](https://github.com/github/github-mcp-server), start from [`policies/github.yaml`](https://github.com/cuong404vn/mcp-leash/blob/main/policies/github.yaml) and put your repository in it. The agent can read, comment, open issues, push to its own branches and open pull requests in that one repository, and cannot merge, delete, run or edit workflows, publish gists, or reach any other repository. That last part stops the known attack where an injected issue makes the agent copy a private repository into a public one.
 
+For [mcp-shell-server](https://github.com/tumf/mcp-shell-server), [`policies/shell.yaml`](https://github.com/cuong404vn/mcp-leash/blob/main/policies/shell.yaml) allows a few read-only commands inside the project (`git status`, `diff`, `log` and friends, `ls`, `cat`, `head`, `tail`, `wc`) and blocks pipes, chaining, redirection, paths outside the project, `.env` files and git options that write files or run other programs.
+
 **2. Point your MCP client at mcp-leash.** Prefix the server command with `mcp-leash run --policy FILE --project-dir DIR --`. Always pass `--project-dir`: clients often start servers from `/` or from their own install folder, and `${PROJECT_DIR}` defaults to the directory mcp-leash starts in.
 
 Claude Desktop (`claude_desktop_config.json`) and Cursor (`.cursor/mcp.json` or `~/.cursor/mcp.json`) use the same format:

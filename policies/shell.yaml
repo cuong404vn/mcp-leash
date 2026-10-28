@@ -1,0 +1,95 @@
+# mcp-leash policy for mcp-shell-server (tumf/mcp-shell-server), written for
+# v1.1.14. Its one tool, shell_execute, takes `command` as a list such as
+# ["git", "status"], plus `directory`, `stdin` and `timeout`.
+# Reference: https://github.com/cuong404vn/mcp-leash/blob/main/docs/policy-reference.md
+#
+# The agent may run a few read-only commands inside the project: git status,
+# diff, log, show, blame, ls-files, rev-parse and grep, and ls, cat, head,
+# tail and wc. It may not chain or redirect commands, name a path outside the
+# project, read .env files or the .git directory, or use git options that
+# write files or start other programs. Every call must pass a `directory`
+# inside the project.
+#
+# Limits worth knowing:
+# - Give the server the same programs too: ALLOW_COMMANDS=git,ls,cat,head,tail,wc
+# - Paths are checked as text. A symlink inside the project that points
+#   outside it is not detected.
+# - git sees the whole repository, so use this on a project that is its own
+#   repository, not a folder inside a bigger one.
+version: 1
+default: deny                # block anything no rule allows
+hide_denied_tools: true      # hide tools that can never run from the agent
+audit:
+  path: ~/.mcp-leash/audit.jsonl
+  redact_keys: [token, password, api_key, authorization, secret]
+rules:
+  # The server treats these as separate list items: a pipeline, a chain or a
+  # redirection to a file.
+  - id: no-chaining-or-redirection
+    tools: ['shell_execute']
+    action: deny
+    when:
+      - arg: command
+        matches: '^(\||\|\||&|&&|;|<|<<|<<<|>|>>|&>|[0-9]>|[0-9]>>|[0-9]>&[0-9])$'
+    reason: Pipes, command chains and redirection are not allowed. Run one command at a time.
+
+  - id: no-credentials-in-arguments
+    tools: ['*']
+    action: deny
+    when:
+      - arg: '*'
+        matches: '(?i)((api[_-]?key|secret|token|passw(or)?d)["'']?\s*[:=]\s*["'']?[A-Za-z0-9_\-/+=]{12,}|BEGIN [A-Z ]*PRIVATE KEY|\b(gh[pousr]_[A-Za-z0-9]{30,}|sk-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16})\b)'
+    reason: Arguments look like they contain a credential.
+
+  # Also after ":" (git show HEAD:.env) and "=" (--option=.env).
+  - id: no-env-or-git-internals
+    tools: ['shell_execute']
+    action: deny
+    when:
+      - arg: command
+        matches: '(?i)(^|[\\/:=])(\.env(\.[^\\/]*)?|\.git)([\\/]|$)'
+    reason: .env files and the .git directory are off limits.
+
+  # Absolute paths (/etc, ~/x, C:\x, \\server\share), also after "=", and any
+  # ".." step, also after ":" (git show HEAD:../x).
+  - id: no-paths-outside-project
+    tools: ['shell_execute']
+    action: deny
+    when:
+      - arg: command
+        matches: '(^|=)(/|~|\\\\|[A-Za-z]:)|(^|[\\/=:])\.\.([\\/]|$)'
+    reason: Use paths relative to the project, without "..".
+
+  # --output writes a file, --no-index reads files outside the repository,
+  # and the others start external programs.
+  - id: no-git-options-that-write-or-run
+    tools: ['shell_execute']
+    action: deny
+    when:
+      - arg: command.0
+        equals: git
+      - arg: command
+        matches: '^(--output|--no-index|--ext-diff|--textconv|-O|--open-files-in-pager)'
+    reason: This git option writes files or runs other programs.
+
+  # command.1 must be the subcommand, so git options that come before it,
+  # such as -c (set config) and -C (change directory), never match.
+  - id: git-read-only
+    tools: ['shell_execute']
+    action: allow
+    when:
+      - arg: command.0
+        equals: git
+      - arg: command.1
+        in: [status, diff, log, show, blame, ls-files, rev-parse, grep]
+      - arg: directory
+        within: ['${PROJECT_DIR}']
+
+  - id: read-only-commands
+    tools: ['shell_execute']
+    action: allow
+    when:
+      - arg: command.0
+        in: [ls, cat, head, tail, wc]
+      - arg: directory
+        within: ['${PROJECT_DIR}']
