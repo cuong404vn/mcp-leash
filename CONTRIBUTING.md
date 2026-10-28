@@ -50,7 +50,7 @@ Every policy behaviour needs a test. Prefer table-driven tests with `pytest.mark
 ## Adding an operator
 
 1. Add the field to `Condition` in `src/mcp_leash/policy/models.py` and its name to `OPERATORS`. Validate the operand there, as `_valid_regex` does for `matches`.
-2. Apply it in `apply_operator` in `src/mcp_leash/policy/matchers.py`. If it only makes sense for strings, call `_require_str` so a non-string value fails closed.
+2. Apply it in `apply_operator` in `src/mcp_leash/policy/matchers.py`. If it only makes sense for strings, take the values from `_strings`, which accepts a string or a list of strings and fails closed on anything else, and combine the results with `require_all` as the other string operators do.
 3. If its operand may contain `${VAR}`, expand it in `_expand_condition` in `src/mcp_leash/policy/loader.py`.
 4. Add cases to `tests/unit/test_matchers.py` (including a missing argument and `arg: '*'`) and a validation case to `tests/unit/test_loader.py`.
 5. Document it in `docs/policy-reference.md` with an example.

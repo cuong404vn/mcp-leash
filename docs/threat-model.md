@@ -18,7 +18,7 @@ An MCP client (Claude Desktop, Cursor, a custom agent) launches mcp-leash, and m
 - **Tool calls are checked before they run.** Every `tools/call` request from the client is evaluated, and a denied call never reaches the server.
 - **Same message, same reading.** Lines are parsed strictly: invalid UTF-8, a byte order mark, duplicate keys and `NaN`/`Infinity` are rejected, and the original bytes are forwarded unchanged. A message cannot look harmless to mcp-leash and different to the server.
 - **Path containment.** `within` resolves `..` and symlinks with `realpath` on both sides, compares case-insensitively on Windows, and checks every path in a list. When a value can be read more than one way (several paths in a list, a `~` path that a server may or may not expand, or a name whose case may or may not matter outside Windows), an allow rule needs every reading inside and a deny rule needs only one.
-- **Fail closed.** A value that cannot be evaluated (a path that cannot be resolved, a list where a string was expected), a malformed `tools/call`, a batch that contains `tools/call`, an unknown or empty policy variable, and an audit log that cannot be written all lead to a deny or a refusal to start.
+- **Fail closed.** A value that cannot be evaluated (a path that cannot be resolved, a number or an object where a string was expected), a malformed `tools/call`, a batch that contains `tools/call`, an unknown or empty policy variable, and an audit log that cannot be written all lead to a deny or a refusal to start.
 - **Accountability.** Every decision is logged with its rule, with secrets redacted from the arguments.
 
 ## What mcp-leash does not protect

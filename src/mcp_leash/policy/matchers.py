@@ -19,15 +19,24 @@ class IndeterminateError(Exception):
 
 
 _MISSING = object()
+_INDEX = re.compile(r"0|[1-9][0-9]*")
 
 
 def select(arguments: Any, arg: str) -> Any:
-    """Return the value at dotted path ``arg``, or ``_MISSING``."""
+    """Return the value at dotted path ``arg``, or ``_MISSING``.
+
+    A part selects a key of an object, or, written as a number such as the
+    ``0`` in ``command.0``, an item of a list. An index past the end of the
+    list is missing, like a key that is not there.
+    """
     value = arguments
     for part in arg.split("."):
-        if not isinstance(value, dict) or part not in value:
+        if isinstance(value, dict) and part in value:
+            value = value[part]
+        elif isinstance(value, list) and _INDEX.fullmatch(part) and int(part) < len(value):
+            value = value[int(part)]
+        else:
             return _MISSING
-        value = value[part]
     return value
 
 
@@ -117,8 +126,8 @@ def within(value: str, directories: Sequence[str], *, require_all: bool = True) 
     return all(readings) if require_all else any(readings)
 
 
-def _paths(value: Any, condition: Condition) -> list[str]:
-    """The paths ``within`` checks: a single string, or every item of a list of strings."""
+def _strings(value: Any, condition: Condition) -> list[str]:
+    """What a string operator checks: a single string, or every item of a list of strings."""
     if isinstance(value, str):
         return [value]
     if isinstance(value, list):
@@ -127,24 +136,18 @@ def _paths(value: Any, condition: Condition) -> list[str]:
         kind = "a list with non-string items"
     else:
         kind = type(value).__name__
+    noun = "path" if condition.within is not None else "string"
     raise IndeterminateError(
-        f"argument {condition.arg!r} is {kind}, but 'within' needs a path or a list of paths"
+        f"argument {condition.arg!r} is {kind}, "
+        f"but {condition.operator!r} needs a {noun} or a list of {noun}s"
     )
-
-
-def _require_str(value: Any, condition: Condition) -> str:
-    if not isinstance(value, str):
-        raise IndeterminateError(
-            f"argument {condition.arg!r} is {type(value).__name__}, "
-            f"but {condition.operator!r} needs a string"
-        )
-    return value
 
 
 def apply_operator(condition: Condition, value: Any, *, require_all: bool = True) -> bool:
     """Apply the condition's operator to one argument value.
 
-    ``require_all`` decides how ``within`` treats a value with several readings
+    ``starts_with``, ``matches`` and ``within`` also take a list of strings
+    and check each item; ``require_all`` decides how the results combine
     (see :func:`condition_holds`).
     """
     if condition.equals is not None:
@@ -153,28 +156,30 @@ def apply_operator(condition: Condition, value: Any, *, require_all: bool = True
         return not json_equal(value, condition.not_equals)
     if condition.in_ is not None:
         return any(json_equal(value, item) for item in condition.in_)
-    if condition.starts_with is not None:
-        return _require_str(value, condition).startswith(condition.starts_with)
-    if condition.matches is not None:
-        return re.search(condition.matches, _require_str(value, condition)) is not None
-    if condition.within is not None:
-        paths = _paths(value, condition)
-        results = (within(p, condition.within, require_all=require_all) for p in paths)
-        return bool(paths) and (all(results) if require_all else any(results))
-    raise IndeterminateError(f"condition on {condition.arg!r} has no operator")
+    strings = _strings(value, condition)
+    results: Iterator[bool]
+    if (prefix := condition.starts_with) is not None:
+        results = (s.startswith(prefix) for s in strings)
+    elif (pattern := condition.matches) is not None:
+        results = (re.search(pattern, s) is not None for s in strings)
+    elif (directories := condition.within) is not None:
+        results = (within(s, directories, require_all=require_all) for s in strings)
+    else:
+        raise IndeterminateError(f"condition on {condition.arg!r} has no operator")
+    return bool(strings) and (all(results) if require_all else any(results))
 
 
 def condition_holds(condition: Condition, arguments: Any, *, require_all: bool = True) -> bool:
     """Evaluate one ``when`` condition against the call's arguments.
 
-    A missing argument, or an empty list of paths, makes the condition false.
+    A missing argument, or an empty list of strings, makes the condition false.
     ``arg: '*'`` is true if any string value at any depth satisfies the operator.
 
-    ``within`` can read one value several ways: each item of a list of paths,
-    a path starting with ``~`` both expanded and literally, and outside
-    Windows a name with or without regard to case. With
-    ``require_all`` (allow rules) every reading must be inside; without it
-    (deny rules) one is enough, so an ambiguous value always leans toward deny.
+    A value can have several readings: each item of a list of strings, and for
+    ``within`` a path starting with ``~`` both expanded and literally, and
+    outside Windows a name with or without regard to case. With
+    ``require_all`` (allow rules) every reading must pass; without it (deny
+    rules) one is enough, so an ambiguous value always leans toward deny.
     """
     if condition.arg == "*":
         return any(

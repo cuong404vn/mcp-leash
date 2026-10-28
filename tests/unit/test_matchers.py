@@ -9,6 +9,7 @@ import pytest
 
 from mcp_leash.policy import parse_policy
 from mcp_leash.policy.matchers import (
+    _MISSING,
     IndeterminateError,
     canonical_path,
     condition_holds,
@@ -16,6 +17,7 @@ from mcp_leash.policy.matchers import (
     is_inside,
     iter_strings,
     json_equal,
+    select,
     within,
 )
 from mcp_leash.policy.models import Condition
@@ -79,10 +81,53 @@ def test_condition_holds(condition: dict[str, Any], arguments: Any, expected: bo
 
 
 @pytest.mark.parametrize("operator", ["starts_with", "matches"])
-@pytest.mark.parametrize("value", [1, None, ["x"], {"x": "y"}, True])
+@pytest.mark.parametrize("value", [1, None, ["x", 1], [["x"]], {"x": "y"}, True])
 def test_string_operators_reject_non_strings(operator: str, value: Any) -> None:
-    with pytest.raises(IndeterminateError, match="needs a string"):
+    with pytest.raises(IndeterminateError, match="needs a string or a list of strings"):
         condition_holds(cond(arg="a", **{operator: "x"}), {"a": value})
+
+
+@pytest.mark.parametrize(
+    ("condition", "value", "allow_rule", "deny_rule"),
+    [
+        ({"starts_with": "x"}, ["xa", "xb"], True, True),
+        ({"starts_with": "x"}, ["xa", "b"], False, True),
+        ({"starts_with": "x"}, ["a", "b"], False, False),
+        ({"matches": "^-"}, ["-v", "--all"], True, True),
+        ({"matches": "^-"}, ["status", "-v"], False, True),
+        ({"matches": "."}, [], False, False),
+    ],
+)
+def test_string_operators_check_every_item_of_a_list(
+    condition: dict[str, Any], value: list[str], allow_rule: bool, deny_rule: bool
+) -> None:
+    c = cond(arg="a", **condition)
+    assert condition_holds(c, {"a": value}, require_all=True) is allow_rule
+    assert condition_holds(c, {"a": value}, require_all=False) is deny_rule
+
+
+@pytest.mark.parametrize(
+    ("arg", "expected"),
+    [
+        ("command.0", "git"),
+        ("command.2", "--stat"),
+        ("command.3", None),
+        ("command.-1", None),
+        ("command.01", None),
+        ("command.x", None),
+        ("files.1.path", "b.md"),
+        ("files.2.path", None),
+        ("map.0", "zero"),
+    ],
+)
+def test_select_reads_list_items_by_index(arg: str, expected: str | None) -> None:
+    arguments = {
+        "command": ["git", "diff", "--stat"],
+        "files": [{"path": "a.md"}, {"path": "b.md"}],
+        "map": {"0": "zero"},
+    }
+    value = select(arguments, arg)
+    assert (None if value is _MISSING else value) == expected
 
 
 @pytest.mark.parametrize("value", [5, None, True, {"x": "/a"}, ["/a", 5], [["/a"]], [None]])

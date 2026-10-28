@@ -151,7 +151,8 @@ when:
 | `arg` | Selects |
 | --- | --- |
 | `path` | The top-level argument `path`. |
-| `options.mode` | A nested value: `{"options": {"mode": ...}}`. Paths go through objects only, not list indexes. |
+| `options.mode` | A nested value: `{"options": {"mode": ...}}`. |
+| `command.0` | An item of a list, counted from 0: `"git"` in `{"command": ["git", "status"]}`. An index past the end is a missing argument. Indexes and keys mix: `files.1.path`. |
 | `'*'` | Every string value at any depth, inside objects and lists. Keys, numbers, booleans and `null` are skipped. The condition holds if any of those strings satisfies the operator. |
 
 A missing argument makes the condition false, for every operator, including `not_equals`. A rule like `action: allow, when: [{arg: mode, not_equals: unsafe}]` therefore does not match a call that has no `mode` at all.
@@ -165,8 +166,8 @@ Quote `'*'` in YAML, because a bare `*` starts an alias.
 | `equals` | string, number or boolean | The value is equal, with no type conversion. |
 | `not_equals` | string, number or boolean | The value exists and is not equal. |
 | `in` | list of strings, numbers or booleans | The value equals one of the items. |
-| `starts_with` | string | The value is a string with this prefix. |
-| `matches` | regular expression | Python `re.search` finds the pattern in the string value. |
+| `starts_with` | string | The value is a string, or a list of strings, with this prefix. |
+| `matches` | regular expression | Python `re.search` finds the pattern in the string value, or in the items of a list of strings. |
 | `within` | non-empty list of directories | The value is a path, or a list of paths, inside the directories. |
 
 #### `equals` and `not_equals`
@@ -206,6 +207,27 @@ Match the shape of the value you want to stop, not a word. A pattern like `secre
 The pattern uses Python [`re`](https://docs.python.org/3/library/re.html) syntax and is checked when the policy loads; an invalid pattern is a validation error. `re.search` matches anywhere in the string, so anchor with `^` and `$` when you mean the whole value. Use `(?i)` for case-insensitive matching. Write patterns in single quotes so YAML keeps backslashes as they are.
 
 Patterns run on text the agent controls. Avoid nested quantifiers such as `(a+)+`, which can take a very long time on crafted input.
+
+#### Lists of strings
+
+`starts_with` and `matches` also take an argument that is a list of strings, and check every item. An allow rule needs every item to pass and a deny rule needs only one, as with lists of paths under [`within`](#when-a-value-can-be-read-more-than-one-way); an empty list never matches. With list indexes in `arg`, this covers tools that take a command as a list, such as the shell server in [`policies/shell.yaml`](https://github.com/cuong404vn/mcp-leash/blob/main/policies/shell.yaml):
+
+```yaml
+- id: no-chaining
+  tools: ['shell_execute']
+  action: deny
+  when:
+    - arg: command               # any item that is exactly |, ; or &&
+      matches: '^(\||;|&&)$'
+- id: git-status
+  tools: ['shell_execute']
+  action: allow
+  when:
+    - arg: command.0
+      equals: git
+    - arg: command.1
+      equals: status
+```
 
 #### `within`
 
@@ -248,7 +270,7 @@ So `read_multiple_files` with one path outside the project does not match an all
 
 When a condition cannot be evaluated with certainty, the call is denied by the rule being checked, whatever that rule's action is. The reason starts with `Could not evaluate the policy:`. This happens when:
 
-- `starts_with` or `matches` meets a value that is not a string (for example a list where a string was expected);
+- `starts_with` or `matches` meets a value that is neither a string nor a list of strings (for example a number, an object, or a list that holds one);
 - `within` meets a value that is neither a string nor a list of strings (for example a number, an object, or a list that holds one);
 - a path contains a NUL byte or cannot be resolved.
 

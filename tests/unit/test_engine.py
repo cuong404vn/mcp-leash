@@ -98,7 +98,7 @@ def test_indeterminate_condition_denies_with_that_rule() -> None:
         starts_with: /tmp/
 """
     )
-    decision = evaluate(policy, "t", {"path": ["/tmp/a"]})
+    decision = evaluate(policy, "t", {"path": ["/tmp/a", 5]})
     assert decision.action == "deny"
     assert decision.rule == "prefix"
     assert decision.reason is not None
