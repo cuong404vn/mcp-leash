@@ -167,6 +167,7 @@ Quote `'*'` in YAML, because a bare `*` starts an alias.
 | `not_equals` | string, number or boolean | The value exists and is not equal. |
 | `in` | list of strings, numbers or booleans | The value equals one of the items. |
 | `starts_with` | string | The value is a string, or a list of strings, with this prefix. |
+| `istarts_with` | string | The value is a string, or a list of strings, with this prefix after Unicode case folding. |
 | `matches` | regular expression | Python `re.search` finds the pattern in the string value, or in the items of a list of strings. |
 | `within` | non-empty list of directories | The value is a path, or a list of paths, inside the directories. |
 
@@ -194,6 +195,15 @@ Comparison is by JSON type: `1` equals `1.0`, but `1` does not equal `true` or `
 - arg: url
   starts_with: 'https://api.github.com/'
 ```
+
+#### `istarts_with`
+
+```yaml
+- arg: command.0
+  istarts_with: git
+```
+
+Like `starts_with`, this accepts a string or a list of strings. Matching uses Python's Unicode `casefold()` on both the value and prefix; allow rules require every list item to match, while deny rules need only one. An empty list never matches.
 
 #### `matches`
 

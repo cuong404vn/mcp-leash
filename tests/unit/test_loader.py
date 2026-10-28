@@ -65,6 +65,10 @@ def rule(body: str) -> str:
             rule("    action: deny\n    when:\n      - arg: p\n        starts_with: '${NOPE}'\n"),
             "NOPE",
         ),
+        (
+            rule("    action: deny\n    when:\n      - arg: p\n        istarts_with: '${NOPE}'\n"),
+            "NOPE",
+        ),
         (MINIMAL + "rules:\n  - id: r\n    tools: 't'\n    action: deny\n", "tools"),
         (MINIMAL + "rules:\n  - id: r\n    tools: []\n    action: deny\n", "tools"),
         (MINIMAL + "rules:\n  - tools: ['t']\n    action: deny\n", "id"),
