@@ -45,6 +45,12 @@ uv tool install git+https://github.com/cuong404vn/mcp-leash
 
 uv tự chọn bản Python phù hợp và đưa lệnh `mcp-leash` vào PATH. Kiểm tra bằng `mcp-leash --version`, và cập nhật về sau bằng `uv tool upgrade mcp-leash`.
 
+Lệnh trên cài code mới nhất trên `main`. Muốn cài một [bản phát hành](https://github.com/cuong404vn/mcp-leash/releases), thêm tag của bản đó:
+
+```bash
+uv tool install git+https://github.com/cuong404vn/mcp-leash@v0.1.0
+```
+
 Nếu không dùng uv, có thể cài bằng [pipx](https://pipx.pypa.io/) (cần Python 3.10 trở lên):
 
 ```bash
@@ -182,7 +188,7 @@ MCP client                        mcp-leash                         MCP server
 
 | Phiên bản | Chủ đề |
 | --- | --- |
-| v0.2 | Policy mẫu đã kiểm thử cho các MCP server filesystem, GitHub và shell |
+| v0.2 | Chạy thử policy mẫu GitHub và shell với server thật, thêm policy cho các server khác |
 | v0.3 | Giao thức HTTP và SSE (streamable HTTP) |
 | v0.4 | Phát hiện chỉ dẫn đáng ngờ trong kết quả trả về của tool |
 | v0.5 | Hành động `ask`: duyệt lệnh gọi trong terminal trước khi chạy |

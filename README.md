@@ -45,6 +45,12 @@ uv tool install git+https://github.com/cuong404vn/mcp-leash
 
 uv picks a suitable Python and puts the `mcp-leash` command on your PATH. Check it with `mcp-leash --version`, and update later with `uv tool upgrade mcp-leash`.
 
+This installs the latest code on `main`. To install a [release](https://github.com/cuong404vn/mcp-leash/releases) instead, add its tag:
+
+```bash
+uv tool install git+https://github.com/cuong404vn/mcp-leash@v0.1.0
+```
+
 Without uv, [pipx](https://pipx.pypa.io/) works too (Python 3.10 or newer):
 
 ```bash
@@ -182,7 +188,7 @@ The [threat model](https://github.com/cuong404vn/mcp-leash/blob/main/docs/threat
 
 | Version | Theme |
 | --- | --- |
-| v0.2 | Tested sample policies for the filesystem, GitHub and shell MCP servers |
+| v0.2 | Run the GitHub and shell sample policies against the real servers, and add policies for more servers |
 | v0.3 | HTTP and SSE (streamable HTTP) transports |
 | v0.4 | Detect suspicious instructions in tool results |
 | v0.5 | `ask` action: approve a call in the terminal before it runs |
