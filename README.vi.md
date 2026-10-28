@@ -61,6 +61,8 @@ mcp-leash init --template project
 
 Mẫu `project` cho agent đọc và ghi trong thư mục dự án, đồng thời chặn xoá file, chặn đụng vào file `.env` và thư mục `.git`, chặn đường dẫn bị mã hoá như `%2e%2e/` hay `file:`, và chặn các tham số trông giống thông tin đăng nhập. Mẫu `readonly` chỉ cho phép đọc.
 
+Với [GitHub MCP server](https://github.com/github/github-mcp-server), hãy bắt đầu từ [`policies/github.yaml`](https://github.com/cuong404vn/mcp-leash/blob/main/policies/github.yaml) và điền repository của bạn vào. Agent được đọc, bình luận, mở issue, push lên nhánh riêng và mở pull request trong đúng repository đó, nhưng không được merge, xoá, chạy hay sửa workflow, đăng gist, hay đụng tới repository nào khác. Điểm cuối cùng chặn được kiểu tấn công đã biết: một issue chứa prompt injection khiến agent chép nội dung repository riêng tư sang một nơi công khai.
+
 **2. Cho MCP client chạy qua mcp-leash.** Thêm `mcp-leash run --policy FILE --project-dir DIR --` vào trước lệnh chạy server. Luôn truyền `--project-dir`: client thường khởi động server từ `/` hoặc thư mục cài đặt của nó, trong khi `${PROJECT_DIR}` mặc định là thư mục mà mcp-leash được khởi động.
 
 Claude Desktop (`claude_desktop_config.json`) và Cursor (`.cursor/mcp.json` hoặc `~/.cursor/mcp.json`) dùng chung định dạng:

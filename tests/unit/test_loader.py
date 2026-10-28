@@ -158,7 +158,7 @@ def test_load_policy_not_utf8(tmp_path: Path) -> None:
         load_policy(path)
 
 
-@pytest.mark.parametrize("name", ["example.yaml", "readonly.yaml", "project.yaml"])
+@pytest.mark.parametrize("name", ["example.yaml", "readonly.yaml", "project.yaml", "github.yaml"])
 def test_shipped_policies_are_valid(name: str) -> None:
     path = Path(__file__).parents[2] / "policies" / name
     policy = load_policy(path)

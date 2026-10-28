@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `policies/github.yaml` for the GitHub MCP server (tool names of github-mcp-server v2.0.3): every call stays in one repository, pushes to `main` or `master` and workflow files are blocked, and merging, deleting, running workflows, gists, settings and secret-scanning alerts are hidden from the agent.
 - `within` accepts a list of paths and checks each one: an allow rule needs every path inside, a deny rule matches if any path is inside, and an empty list never matches.
 - The `readonly` and `project` templates allow `read_multiple_files` when every path is inside the project.
 - The `readonly` and `project` templates deny `file:` URIs and `%`-escapes in path arguments (`no-encoded-paths`, `no-encoded-paths-multi`), for servers that decode them. File contents are not checked.

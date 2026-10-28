@@ -1,0 +1,136 @@
+# mcp-leash policy for the GitHub MCP server (github/github-mcp-server).
+# Tool names checked against v2.0.3.
+# Reference: https://github.com/cuong404vn/mcp-leash/blob/main/docs/policy-reference.md
+#
+# The agent works on ONE repository: it may read code, issues, pull requests
+# and workflow runs, comment, open and edit issues, push to its own branches
+# and open pull requests. It may not merge, delete, run workflows, edit
+# workflow files, publish gists, change settings, or touch any other
+# repository.
+#
+# Replace your-name and your-repo below with your repository. To allow more
+# repositories of the same owner, add them to the `in` lists.
+#
+# Why one repository: a known attack on GitHub agents hides a prompt
+# injection in a public issue, which makes the agent read a private
+# repository and post what it found somewhere public. Keeping every call
+# inside one repository breaks that chain.
+version: 1
+default: deny                # block anything no rule allows
+hide_denied_tools: true      # hide tools that can never run from the agent
+audit:
+  path: ~/.mcp-leash/audit.jsonl
+  redact_keys: [token, password, api_key, authorization, secret]
+rules:
+  - id: no-merge-delete-or-admin
+    tools:
+      - merge_pull_request
+      - delete_file
+      - delete_repository
+      - create_repository
+      - fork_repository
+      - actions_run_trigger
+      - create_repository_ruleset
+      - custom_properties_write
+      - create_gist
+      - update_gist
+      - get_secret_scanning_alert
+      - list_secret_scanning_alerts
+    action: deny
+    reason: Merging, deleting, running workflows, gists, settings and secret alerts are not available to agents.
+
+  - id: no-credentials-in-arguments
+    tools: ['*']
+    action: deny
+    when:
+      - arg: '*'
+        matches: '(?i)((api[_-]?key|secret|token|passw(or)?d)["'']?\s*[:=]\s*["'']?[A-Za-z0-9_\-/+=]{12,}|BEGIN [A-Z ]*PRIVATE KEY|\b(gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16})\b)'
+    reason: Arguments look like they contain a credential.
+
+  # Change main and master if your default branch has another name.
+  - id: no-pushes-to-default-branch
+    tools: ['create_or_update_file', 'push_files']
+    action: deny
+    when:
+      - arg: branch
+        matches: '(?i)^\s*(refs/heads/)?(main|master)\s*$'
+    reason: Push to a branch and open a pull request instead.
+
+  # A workflow runs with the repository's secrets, so editing one on any
+  # branch could leak them.
+  - id: no-workflow-files
+    tools: ['create_or_update_file']
+    action: deny
+    when:
+      - arg: path
+        matches: '(?i)^/?\.github/workflows/'
+    reason: Workflow files cannot be changed by agents.
+
+  # push_files takes a list of files; check every path in it.
+  - id: no-workflow-files-push
+    tools: ['push_files']
+    action: deny
+    when:
+      - arg: '*'
+        matches: '(?i)^/?\.github/workflows/'
+    reason: Workflow files cannot be changed by agents.
+
+  - id: who-am-i
+    tools: ['get_me']
+    action: allow
+
+  # search_* and notification tools can read any repository the token can
+  # see, so they stay blocked by the default. Use list_* and get_* instead.
+  - id: read-this-repository
+    tools:
+      - get_file_contents
+      - get_repository_tree
+      - list_branches
+      - list_commits
+      - get_commit
+      - list_tags
+      - get_tag
+      - list_releases
+      - get_latest_release
+      - get_release_by_tag
+      - issue_read
+      - list_issues
+      - list_issue_types
+      - list_issue_fields
+      - get_label
+      - list_label
+      - pull_request_read
+      - list_pull_requests
+      - list_discussions
+      - get_discussion
+      - get_discussion_comments
+      - list_discussion_categories
+      - actions_list
+      - actions_get
+      - get_job_logs
+    action: allow
+    when:
+      - arg: owner
+        in: [your-name]
+      - arg: repo
+        in: [your-repo]
+
+  - id: work-in-this-repository
+    tools:
+      - add_issue_comment
+      - update_issue_comment
+      - issue_write
+      - create_branch
+      - create_or_update_file
+      - push_files
+      - create_pull_request
+      - update_pull_request
+      - pull_request_review_write
+      - add_comment_to_pending_review
+      - add_reply_to_pull_request_comment
+    action: allow
+    when:
+      - arg: owner
+        in: [your-name]
+      - arg: repo
+        in: [your-repo]
