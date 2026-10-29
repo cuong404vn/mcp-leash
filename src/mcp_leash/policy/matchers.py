@@ -146,8 +146,8 @@ def _strings(value: Any, condition: Condition) -> list[str]:
 def apply_operator(condition: Condition, value: Any, *, require_all: bool = True) -> bool:
     """Apply the condition's operator to one argument value.
 
-    ``starts_with``, ``matches`` and ``within`` also take a list of strings
-    and check each item; ``require_all`` decides how the results combine
+    ``starts_with``, ``matches``, ``not_matches`` and ``within`` also take a
+    list of strings and check each item; ``require_all`` decides how the results combine
     (see :func:`condition_holds`).
     """
     if condition.equals is not None:
@@ -162,6 +162,8 @@ def apply_operator(condition: Condition, value: Any, *, require_all: bool = True
         results = (s.startswith(prefix) for s in strings)
     elif (pattern := condition.matches) is not None:
         results = (re.search(pattern, s) is not None for s in strings)
+    elif (pattern := condition.not_matches) is not None:
+        results = (re.search(pattern, s) is None for s in strings)
     elif (directories := condition.within) is not None:
         results = (within(s, directories, require_all=require_all) for s in strings)
     else:

@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- `not_matches`, a regular-expression operator that requires a string not to match a pattern.
+
 ## [0.1.0] - 2026-10-28
 
 First release: a stdio proxy that checks every MCP `tools/call` against a YAML policy. Install it from GitHub with `uv tool install git+https://github.com/cuong404vn/mcp-leash@v0.1.0`. It is not published to PyPI.

@@ -37,6 +37,12 @@ def rule(body: str) -> str:
             rule("    action: deny\n    when:\n      - arg: a\n        matches: '(unclosed'\n"),
             "invalid regular",
         ),
+        (
+            rule(
+                "    action: allow\n    when:\n      - arg: a\n        not_matches: '(unclosed'\n"
+            ),
+            "invalid regular",
+        ),
         (rule("    action: deny\n    when:\n      - arg: a\n        equals: [1]\n"), "equals"),
         (rule("    action: deny\n    when:\n      - arg: a\n        within: []\n"), "within"),
         (

@@ -51,17 +51,20 @@ def cond(**fields: Any) -> Condition:
         ({"arg": "a", "in": ["x", 2, True]}, {"a": "x"}, True),
         ({"arg": "a", "in": ["x", 2]}, {"a": True}, False),
         ({"arg": "a", "in": []}, {"a": "x"}, False),
-        # starts_with / matches
+        # starts_with / matches / not_matches
         ({"arg": "a", "starts_with": "/tmp/"}, {"a": "/tmp/x"}, True),
         ({"arg": "a", "starts_with": "/tmp/"}, {"a": "/tmpx"}, False),
         ({"arg": "a", "matches": "^rm\\b"}, {"a": "rm -rf /"}, True),
         ({"arg": "a", "matches": "(?i)secret"}, {"a": "my SECRET"}, True),
         ({"arg": "a", "matches": "^ls$"}, {"a": "ls -la"}, False),
+        ({"arg": "a", "not_matches": "^rm\\b"}, {"a": "ls -la"}, True),
+        ({"arg": "a", "not_matches": "^rm\\b"}, {"a": "rm -rf /"}, False),
         # missing arguments make every operator false
         ({"arg": "a", "equals": "x"}, {}, False),
         ({"arg": "a", "not_equals": "x"}, {}, False),
         ({"arg": "a", "in": ["x"]}, {}, False),
         ({"arg": "a", "matches": "."}, {"b": "x"}, False),
+        ({"arg": "a", "not_matches": "."}, {"b": "x"}, False),
         ({"arg": "a", "within": ["/"]}, {}, False),
         # nested paths
         ({"arg": "options.mode", "equals": "x"}, {"options": {"mode": "x"}}, True),
