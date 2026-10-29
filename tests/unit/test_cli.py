@@ -36,6 +36,39 @@ def test_validate_invalid_policy(tmp_path: Path) -> None:
     assert "default" in result.stderr
 
 
+@pytest.mark.parametrize("command", ["validate", "run"])
+@pytest.mark.parametrize(
+    ("policy", "location"),
+    [
+        (
+            "version: 1\ndefault: deny\nrules:\n  - id: r\n    tools: [t]\n"
+            "    action: deny\n    when:\n      - arg: a\n        unknown_operator: x\n",
+            "line 9, column 9",
+        ),
+        (
+            "version: 1\ndefault: deny\nrules:\n  - id: r\n    tools: [t]\n",
+            "line 4, column 5",
+        ),
+        (
+            "version: 1\ndefault: deny\nrules:\n  - id: r\n    tools: [t]\n"
+            "    action: deny\n    when:\n      - arg: p\n        within: ['${MISSING}/x']\n",
+            "line 9, column 9",
+        ),
+    ],
+)
+def test_policy_errors_include_source_location(
+    command: str, policy: str, location: str, tmp_path: Path
+) -> None:
+    bad = tmp_path / "bad.yaml"
+    bad.write_text(policy)
+    args = [command, str(bad)]
+    if command == "run":
+        args = ["run", "--policy", str(bad), "--", "python", "-c", "pass"]
+    result = runner.invoke(app, args)
+    assert result.exit_code == 2
+    assert location in result.stderr
+
+
 def test_validate_missing_file(tmp_path: Path) -> None:
     result = runner.invoke(app, ["validate", str(tmp_path / "nope.yaml")])
     assert result.exit_code == 2

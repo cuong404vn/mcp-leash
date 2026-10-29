@@ -23,6 +23,10 @@ def rule(body: str) -> str:
         ("version: 1\ndefault: block\n", "default"),
         ("version: 1\n", "default"),
         (MINIMAL + "unknown_key: 1\n", "unknown_key"),
+        (
+            rule("    action: deny\n    when:\n      - arg: a\n        unknown_operator: x\n"),
+            "unknown_operator",
+        ),
         (MINIMAL + "hide_denied_tools: 'yes'\n", "hide_denied_tools"),
         (rule("    action: maybe\n"), "action"),
         (rule("    action: deny\n    when:\n      - arg: a\n        contains: x\n"), "contains"),
@@ -84,6 +88,27 @@ def rule(body: str) -> str:
 def test_invalid_policies(text: str, error: str) -> None:
     with pytest.raises(PolicyError, match=error):
         parse_policy(text, env={"EMPTY": ""})
+
+
+@pytest.mark.parametrize(
+    ("text", "line", "column"),
+    [
+        (
+            rule("    action: deny\n    when:\n      - arg: a\n        unknown_operator: x\n"),
+            9,
+            9,
+        ),
+        (rule(""), 4, 5),
+        (
+            rule("    action: deny\n    when:\n      - arg: p\n        within: ['${MISSING}/x']\n"),
+            9,
+            9,
+        ),
+    ],
+)
+def test_validation_errors_include_source_location(text: str, line: int, column: int) -> None:
+    with pytest.raises(PolicyError, match=rf"line {line}, column {column}:"):
+        parse_policy(text, env={})
 
 
 def test_defaults() -> None:

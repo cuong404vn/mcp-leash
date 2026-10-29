@@ -10,6 +10,7 @@ from typing import Any
 
 import yaml
 from pydantic import ValidationError
+from yaml.nodes import MappingNode, Node, ScalarNode, SequenceNode
 
 from mcp_leash.policy.matchers import IndeterminateError, canonical_path
 from mcp_leash.policy.models import Condition, Policy
@@ -20,6 +21,10 @@ _NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
 class PolicyError(Exception):
     """The policy file is missing or invalid."""
+
+
+YamlPath = tuple[str | int, ...]
+SourceLocations = dict[YamlPath, yaml.error.Mark]
 
 
 class _UniqueKeyLoader(yaml.SafeLoader):
@@ -58,7 +63,12 @@ def _expand_path(value: str, lookup: Callable[[str], str | None]) -> str:
     return os.path.expanduser(expand_variables(value, lookup))
 
 
-def _expand_condition(condition: Condition, lookup: Callable[[str], str | None]) -> Condition:
+def _expand_condition(
+    condition: Condition,
+    lookup: Callable[[str], str | None],
+    locations: SourceLocations,
+    path: YamlPath,
+) -> Condition:
     def expand(value: Any) -> Any:
         return expand_variables(value, lookup) if isinstance(value, str) else value
 
@@ -67,13 +77,71 @@ def _expand_condition(condition: Condition, lookup: Callable[[str], str | None])
         try:
             update["within"] = [canonical_path(_expand_path(d, lookup)) for d in condition.within]
         except IndeterminateError as exc:
-            raise PolicyError(str(exc)) from exc
+            raise PolicyError(
+                _format_located_error(str(exc), (*path, "within"), locations)
+            ) from exc
+        except PolicyError as exc:
+            raise PolicyError(
+                _format_located_error(str(exc), (*path, "within"), locations)
+            ) from exc
     for name in ("equals", "not_equals", "starts_with"):
         if getattr(condition, name) is not None:
-            update[name] = expand(getattr(condition, name))
+            try:
+                update[name] = expand(getattr(condition, name))
+            except PolicyError as exc:
+                raise PolicyError(
+                    _format_located_error(str(exc), (*path, name), locations)
+                ) from exc
     if condition.in_ is not None:
-        update["in_"] = [expand(item) for item in condition.in_]
+        try:
+            update["in_"] = [expand(item) for item in condition.in_]
+        except PolicyError as exc:
+            raise PolicyError(_format_located_error(str(exc), (*path, "in"), locations)) from exc
     return condition.model_copy(update=update)
+
+
+def _source_locations(text: str) -> SourceLocations:
+    """Map YAML paths to the source marks of their keys or values."""
+    root = yaml.compose(text, Loader=_UniqueKeyLoader)
+    locations: SourceLocations = {}
+
+    active: set[int] = set()
+
+    def visit(node: Node, path: YamlPath) -> None:
+        if id(node) in active:
+            return
+        active.add(id(node))
+        locations.setdefault(path, node.start_mark)
+        if isinstance(node, MappingNode):
+            for key_node, value_node in node.value:
+                if not isinstance(key_node, ScalarNode):
+                    continue
+                try:
+                    key: str | int = key_node.value
+                except (TypeError, ValueError):
+                    continue
+                child_path = (*path, key)
+                locations[child_path] = key_node.start_mark
+                visit(value_node, child_path)
+        elif isinstance(node, SequenceNode):
+            for index, item_node in enumerate(node.value):
+                child_path = (*path, index)
+                locations[child_path] = item_node.start_mark
+                visit(item_node, child_path)
+        active.remove(id(node))
+
+    if root is not None:
+        visit(root, ())
+    return locations
+
+
+def _format_located_error(message: str, path: YamlPath, locations: SourceLocations) -> str:
+    """Prefix a policy error with the nearest available YAML source location."""
+    for length in range(len(path), -1, -1):
+        mark = locations.get(path[:length])
+        if mark is not None:
+            return f"line {mark.line + 1}, column {mark.column + 1}: {message}"
+    return message
 
 
 def read_yaml(text: str) -> dict[str, Any]:
@@ -87,11 +155,13 @@ def read_yaml(text: str) -> dict[str, Any]:
     return data
 
 
-def _format_validation_error(error: ValidationError) -> str:
+def _format_validation_error(error: ValidationError, locations: SourceLocations) -> str:
     lines = []
     for item in error.errors():
-        location = ".".join(str(part) for part in item["loc"]) or "policy"
-        lines.append(f"{location}: {item['msg']}")
+        path = tuple(part for part in item["loc"] if isinstance(part, (str, int)))
+        location = ".".join(str(part) for part in path) or "policy"
+        message = f"{location}: {item['msg']}"
+        lines.append(_format_located_error(message, path, locations))
     return "\n".join(lines)
 
 
@@ -113,18 +183,27 @@ def parse_policy(
         return project if name == "PROJECT_DIR" else environment.get(name)
 
     data = read_yaml(text)
+    locations = _source_locations(text)
     try:
         policy = Policy.model_validate(data)
     except ValidationError as exc:
-        raise PolicyError(_format_validation_error(exc)) from exc
+        raise PolicyError(_format_validation_error(exc, locations)) from exc
 
-    rules = [
-        rule.model_copy(update={"when": [_expand_condition(c, lookup) for c in rule.when]})
-        for rule in policy.rules
-    ]
+    rules = []
+    for rule_index, rule in enumerate(policy.rules):
+        conditions = []
+        for condition_index, condition in enumerate(rule.when):
+            path = ("rules", rule_index, "when", condition_index)
+            conditions.append(_expand_condition(condition, lookup, locations, path))
+        rules.append(rule.model_copy(update={"when": conditions}))
     audit = policy.audit
     if audit.path is not None:
-        audit = audit.model_copy(update={"path": _expand_path(audit.path, lookup)})
+        try:
+            audit = audit.model_copy(update={"path": _expand_path(audit.path, lookup)})
+        except PolicyError as exc:
+            raise PolicyError(
+                _format_located_error(str(exc), ("audit", "path"), locations)
+            ) from exc
     return policy.model_copy(update={"rules": rules, "audit": audit})
 
 
