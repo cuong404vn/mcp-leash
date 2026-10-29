@@ -216,3 +216,21 @@ def test_evaluate_example_policy(tmp_path: Path) -> None:
     ]
     for tool, arguments, rule in cases:
         assert evaluate(policy, tool, arguments).rule == rule, (tool, arguments)
+
+
+def test_ends_with_condition_in_policy() -> None:
+    policy = make_policy(
+        """
+  - id: no-keys
+    tools: ['read_file']
+    action: deny
+    when:
+      - arg: path
+        ends_with: .pem
+  - id: allow-reads
+    tools: ['read_file']
+    action: allow
+"""
+    )
+    assert not evaluate(policy, "read_file", {"path": "server.pem"}).allowed
+    assert evaluate(policy, "read_file", {"path": "server.txt"}).allowed

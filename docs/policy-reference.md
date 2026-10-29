@@ -167,6 +167,7 @@ Quote `'*'` in YAML, because a bare `*` starts an alias.
 | `not_equals` | string, number or boolean | The value exists and is not equal. |
 | `in` | list of strings, numbers or booleans | The value equals one of the items. |
 | `starts_with` | string | The value is a string, or a list of strings, with this prefix. |
+| `ends_with` | string | The value is a string, or a list of strings, with this suffix. |
 | `matches` | regular expression | Python `re.search` finds the pattern in the string value, or in the items of a list of strings. |
 | `within` | non-empty list of directories | The value is a path, or a list of paths, inside the directories. |
 
@@ -195,6 +196,13 @@ Comparison is by JSON type: `1` equals `1.0`, but `1` does not equal `true` or `
   starts_with: 'https://api.github.com/'
 ```
 
+#### `ends_with`
+
+```yaml
+- arg: path
+  ends_with: '.pem'
+```
+
 #### `matches`
 
 ```yaml
@@ -210,7 +218,7 @@ Patterns run on text the agent controls. Avoid nested quantifiers such as `(a+)+
 
 #### Lists of strings
 
-`starts_with` and `matches` also take an argument that is a list of strings, and check every item. An allow rule needs every item to pass and a deny rule needs only one, as with lists of paths under [`within`](#when-a-value-can-be-read-more-than-one-way); an empty list never matches. With list indexes in `arg`, this covers tools that take a command as a list, such as the shell server in [`policies/shell.yaml`](https://github.com/cuong404vn/mcp-leash/blob/main/policies/shell.yaml):
+`starts_with`, `ends_with` and `matches` also take an argument that is a list of strings, and check every item. An allow rule needs every item to pass and a deny rule needs only one, as with lists of paths under [`within`](#when-a-value-can-be-read-more-than-one-way); an empty list never matches. With list indexes in `arg`, this covers tools that take a command as a list, such as the shell server in [`policies/shell.yaml`](https://github.com/cuong404vn/mcp-leash/blob/main/policies/shell.yaml):
 
 ```yaml
 - id: no-chaining
@@ -270,7 +278,7 @@ So `read_multiple_files` with one path outside the project does not match an all
 
 When a condition cannot be evaluated with certainty, the call is denied by the rule being checked, whatever that rule's action is. The reason starts with `Could not evaluate the policy:`. This happens when:
 
-- `starts_with` or `matches` meets a value that is neither a string nor a list of strings (for example a number, an object, or a list that holds one);
+- `starts_with`, `ends_with` or `matches` meets a value that is neither a string nor a list of strings (for example a number, an object, or a list that holds one);
 - `within` meets a value that is neither a string nor a list of strings (for example a number, an object, or a list that holds one);
 - a path contains a NUL byte or cannot be resolved.
 
@@ -279,7 +287,7 @@ When a condition cannot be evaluated with certainty, the call is denied by the r
 `${NAME}` is replaced when the policy loads, in these places:
 
 - `within` directories and `audit.path` (which also expand `~`);
-- string operands of `equals`, `not_equals`, `in` and `starts_with`.
+- string operands of `equals`, `not_equals`, `in`, `starts_with` and `ends_with`.
 
 It is not replaced in `matches` patterns, where `$` and `{` are regex syntax, nor in `id`, `tools` or `reason`.
 

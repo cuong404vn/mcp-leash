@@ -68,7 +68,7 @@ def _expand_condition(condition: Condition, lookup: Callable[[str], str | None])
             update["within"] = [canonical_path(_expand_path(d, lookup)) for d in condition.within]
         except IndeterminateError as exc:
             raise PolicyError(str(exc)) from exc
-    for name in ("equals", "not_equals", "starts_with"):
+    for name in ("equals", "not_equals", "starts_with", "ends_with"):
         if getattr(condition, name) is not None:
             update[name] = expand(getattr(condition, name))
     if condition.in_ is not None:
