@@ -65,6 +65,10 @@ def rule(body: str) -> str:
             rule("    action: deny\n    when:\n      - arg: p\n        starts_with: '${NOPE}'\n"),
             "NOPE",
         ),
+        (
+            rule("    action: deny\n    when:\n      - arg: p\n        ends_with: '${NOPE}'\n"),
+            "NOPE",
+        ),
         (MINIMAL + "rules:\n  - id: r\n    tools: 't'\n    action: deny\n", "tools"),
         (MINIMAL + "rules:\n  - id: r\n    tools: []\n    action: deny\n", "tools"),
         (MINIMAL + "rules:\n  - tools: ['t']\n    action: deny\n", "id"),
@@ -109,13 +113,17 @@ def test_variables_expand_in_string_operands_but_not_regex(tmp_path: Path) -> No
         "      - arg: b\n        equals: '${USER_NAME}'\n"
         "      - arg: c\n        in: ['${USER_NAME}', 3]\n"
         "      - arg: d\n        matches: '^\\$\\{x\\}$'\n"
+        "      - arg: e\n        ends_with: '${SUFFIX}'\n"
     )
-    policy = parse_policy(text, project_dir=str(tmp_path), env={"USER_NAME": "me"})
+    policy = parse_policy(
+        text, project_dir=str(tmp_path), env={"USER_NAME": "me", "SUFFIX": ".pem"}
+    )
     when = policy.rules[0].when
     assert when[0].starts_with == canonical_path(str(tmp_path)) + "/"
     assert when[1].equals == "me"
     assert when[2].in_ == ["me", 3]
     assert when[3].matches == "^\\$\\{x\\}$"
+    assert when[4].ends_with == ".pem"
 
 
 def test_tilde_expands_in_within_and_audit_path(

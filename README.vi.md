@@ -143,7 +143,7 @@ rules:
         within: ['${PROJECT_DIR}']
 ```
 
-Điều kiện hỗ trợ `equals`, `not_equals`, `in`, `starts_with`, `matches` (biểu thức chính quy) và `within` (kiểm tra đường dẫn nằm trong thư mục, có xử lý `..` và symlink). Mọi trường và toán tử được mô tả trong [policy reference](https://github.com/cuong404vn/mcp-leash/blob/main/docs/policy-reference.md) (tiếng Anh).
+Điều kiện hỗ trợ `equals`, `not_equals`, `in`, `starts_with`, `ends_with`, `matches` (biểu thức chính quy) và `within` (kiểm tra đường dẫn nằm trong thư mục, có xử lý `..` và symlink). Mọi trường và toán tử được mô tả trong [policy reference](https://github.com/cuong404vn/mcp-leash/blob/main/docs/policy-reference.md) (tiếng Anh).
 
 | Lệnh | Công dụng |
 | --- | --- |
