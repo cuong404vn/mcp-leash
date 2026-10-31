@@ -96,6 +96,13 @@ If the client reports that it cannot find `mcp-leash` (desktop apps, especially 
 
 Ready-to-edit files: [`examples/claude_desktop_config.json`](https://github.com/cuong404vn/mcp-leash/blob/main/examples/claude_desktop_config.json) and [`examples/cursor_mcp.json`](https://github.com/cuong404vn/mcp-leash/blob/main/examples/cursor_mcp.json).
 
+Other clients use these client-specific examples. Replace the placeholder paths before saving the config. The JSON examples were syntax-checked, but have not been tested by launching the listed client:
+
+- **VS Code:** [`examples/vscode_mcp.json`](examples/vscode_mcp.json) — copy the `servers` object into `.vscode/mcp.json` in the workspace (or the VS Code user-profile MCP config). Client integration: not tested with VS Code.
+- **Windsurf:** [`examples/windsurf_mcp_config.json`](examples/windsurf_mcp_config.json) — merge the `mcpServers` entry into `~/.codeium/windsurf/mcp_config.json`. Client integration: not tested with Windsurf.
+- **Zed:** [`examples/zed_settings.json`](examples/zed_settings.json) — merge the `context_servers` entry into the Zed settings file, which you can open with `zed: open settings file`. Client integration: not tested with Zed.
+- **Claude Code:** [`examples/claude_code_mcp.json`](examples/claude_code_mcp.json) — save as `.mcp.json` at the project root. Client integration: not tested with Claude Code.
+
 **3. See a blocked call.** Restart the client and ask the agent to delete a file in the project. It gets the "Blocked by mcp-leash" message above, and the audit log (`~/.mcp-leash/audit.jsonl` with the templates) shows the decision. To test a policy without a client:
 
 ```bash

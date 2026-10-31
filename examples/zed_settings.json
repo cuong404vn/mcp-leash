@@ -1,0 +1,19 @@
+{
+  "context_servers": {
+    "mcp-leash-filesystem": {
+      "command": "mcp-leash",
+      "args": [
+        "run",
+        "--policy",
+        "/ABSOLUTE/PATH/TO/mcp-leash.yaml",
+        "--project-dir",
+        "/ABSOLUTE/PATH/TO/project",
+        "--",
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/ABSOLUTE/PATH/TO/project"
+      ]
+    }
+  }
+}

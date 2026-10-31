@@ -1,0 +1,20 @@
+{
+  "servers": {
+    "mcp-leash-filesystem": {
+      "type": "stdio",
+      "command": "mcp-leash",
+      "args": [
+        "run",
+        "--policy",
+        "/ABSOLUTE/PATH/TO/mcp-leash.yaml",
+        "--project-dir",
+        "/ABSOLUTE/PATH/TO/project",
+        "--",
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/ABSOLUTE/PATH/TO/project"
+      ]
+    }
+  }
+}
