@@ -147,11 +147,13 @@ Conditions support `equals`, `not_equals`, `in`, `starts_with`, `matches` (regex
 
 | Command | Purpose |
 | --- | --- |
-| `mcp-leash run --policy FILE [--project-dir DIR] [--dry-run] -- CMD [ARGS...]` | Start the proxy and launch the real server as `CMD` |
+| `mcp-leash run --policy FILE [--project-dir DIR] [--dry-run] [--log-format text\|json] -- CMD [ARGS...]` | Start the proxy and launch the real server as `CMD` |
 | `mcp-leash validate FILE` | Check a policy file. Exit 0 if valid, 2 if not |
 | `mcp-leash check FILE --tool NAME --args JSON` | Evaluate one call offline and print the decision |
 | `mcp-leash init [--template readonly\|project]` | Write a starter policy to `mcp-leash.yaml` |
 | `mcp-leash suggest LOG [--policy FILE] [--project-dir DIR]` | Print a policy that allows the calls no rule decided in an audit log |
+
+`run` diagnostics go to stderr as readable text by default. Pass `--log-format json` to emit one JSON object per diagnostic line; stdout remains reserved for MCP protocol messages.
 
 ## How it works
 

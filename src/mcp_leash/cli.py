@@ -2,6 +2,7 @@
 
 import asyncio
 import enum
+import json
 import logging
 import os
 import sys
@@ -37,6 +38,22 @@ class Template(str, enum.Enum):
 
     readonly = "readonly"
     project = "project"
+
+
+class LogFormat(str, enum.Enum):
+    """Formats for diagnostic messages written by ``run``."""
+
+    text = "text"
+    json = "json"
+
+
+class JsonLineFormatter(logging.Formatter):
+    """Format one diagnostic as a JSON object for line-oriented log collectors."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        return json.dumps(
+            {"level": record.levelname, "message": record.getMessage()}, ensure_ascii=False
+        )
 
 
 def _fail(message: str, code: int = EXIT_INVALID) -> typer.Exit:
@@ -97,11 +114,18 @@ def run(
         bool,
         typer.Option("--dry-run", help="Log would_deny but forward every call (audit mode)."),
     ] = False,
+    log_format: Annotated[
+        LogFormat,
+        typer.Option("--log-format", help="Format for diagnostics written to stderr."),
+    ] = LogFormat.text,
 ) -> None:
     """Start the proxy and launch the real MCP server as CMD."""
-    logging.basicConfig(
-        stream=sys.stderr, level=logging.INFO, format="mcp-leash: %(levelname)s: %(message)s"
-    )
+    handler = logging.StreamHandler(sys.stderr)
+    if log_format is LogFormat.json:
+        handler.setFormatter(JsonLineFormatter())
+    else:
+        handler.setFormatter(logging.Formatter("mcp-leash: %(levelname)s: %(message)s"))
+    logging.basicConfig(level=logging.INFO, handlers=[handler])
     loaded = _load(policy, project_dir)
     project = canonical_path(str(project_dir) if project_dir else os.getcwd())
     if os.path.dirname(project) == project:

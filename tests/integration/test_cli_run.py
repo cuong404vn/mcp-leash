@@ -118,6 +118,35 @@ def test_run_end_to_end(policy_file: Path, env: dict[str, str], tmp_path: Path) 
     assert b"blocked delete_file (rule no-deletes)" in stderr
 
 
+def test_run_json_log_format_keeps_stdout_protocol_only(
+    policy_file: Path, env: dict[str, str]
+) -> None:
+    proc = start(policy_file, env, "--log-format", "json")
+    stdout, stderr = proc.communicate(
+        b"".join(
+            [
+                line({"jsonrpc": "2.0", "id": 0, "method": "initialize", "params": {}}),
+                call(1, "delete_file", {"path": "/tmp/x"}),
+            ]
+        ),
+        timeout=60,
+    )
+
+    assert proc.returncode == 0, stderr.decode()
+    responses = [json.loads(item) for item in stdout.splitlines()]
+    assert sorted(response["id"] for response in responses) == [0, 1]
+    blocked = next(response for response in responses if response["id"] == 1)
+    assert blocked["result"]["isError"] is True
+
+    diagnostics = [json.loads(item) for item in stderr.splitlines()]
+    assert diagnostics
+    assert all(set(item) >= {"level", "message"} for item in diagnostics)
+    assert any(
+        item["level"] == "INFO" and "blocked delete_file (rule no-deletes)" in item["message"]
+        for item in diagnostics
+    )
+
+
 def test_run_dry_run_forwards_denied_calls(
     policy_file: Path, env: dict[str, str], tmp_path: Path
 ) -> None:

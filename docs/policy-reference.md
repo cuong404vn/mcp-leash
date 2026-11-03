@@ -343,13 +343,13 @@ Redaction applies to the log only. The server receives the arguments unchanged.
 
 | Command | Exit code |
 | --- | --- |
-| `mcp-leash run --policy FILE [--project-dir DIR] [--dry-run] -- CMD [ARGS...]` | The server's exit code; `128 + N` if the server was killed by signal `N`; `2` for an invalid policy or an audit log that cannot be opened; `127` if `CMD` cannot be started. |
+| `mcp-leash run --policy FILE [--project-dir DIR] [--dry-run] [--log-format text\|json] -- CMD [ARGS...]` | The server's exit code; `128 + N` if the server was killed by signal `N`; `2` for an invalid policy or an audit log that cannot be opened; `127` if `CMD` cannot be started. |
 | `mcp-leash validate FILE` | `0` if valid, `2` if not. |
 | `mcp-leash check FILE --tool NAME [--args JSON] [--project-dir DIR]` | `0` after printing the decision; `2` for an invalid policy or arguments that are not a JSON object. |
 | `mcp-leash init [--template readonly\|project] [--force]` | `0` after writing `mcp-leash.yaml`; `1` if the file exists and `--force` is not given. |
 | `mcp-leash suggest LOG [--policy FILE] [--project-dir DIR]` | `0` after printing a policy; `2` if `LOG` cannot be read or `FILE` is invalid. |
 
-`run` writes only protocol messages to stdout. Diagnostics, including one line per blocked call, go to stderr, which most MCP clients keep in their server logs. When the client closes stdin, `run` closes the server's stdin and waits for the server to finish. On SIGINT or SIGTERM it terminates the server. It exits as soon as the server exits.
+`run` writes only protocol messages to stdout. Diagnostics, including one line per blocked call, go to stderr, which most MCP clients keep in their server logs. They are readable text by default; `--log-format json` writes each as a JSON object with `level` and `message` fields. The format option does not affect the JSON Lines audit log. When the client closes stdin, `run` closes the server's stdin and waits for the server to finish. On SIGINT or SIGTERM it terminates the server. It exits as soon as the server exits.
 
 ### `suggest`
 
