@@ -96,6 +96,13 @@ Nếu client báo không tìm thấy `mcp-leash` (ứng dụng desktop, nhất l
 
 File mẫu để sửa: [`examples/claude_desktop_config.json`](https://github.com/cuong404vn/mcp-leash/blob/main/examples/claude_desktop_config.json) và [`examples/cursor_mcp.json`](https://github.com/cuong404vn/mcp-leash/blob/main/examples/cursor_mcp.json).
 
+Các client khác có định dạng cấu hình riêng. Thay các đường dẫn mẫu trước khi lưu. Các file này viết theo tài liệu của từng client nhưng chưa được thử với chính client đó:
+
+- **VS Code:** [`examples/vscode_mcp.json`](https://github.com/cuong404vn/mcp-leash/blob/main/examples/vscode_mcp.json): chép object `servers` vào `.vscode/mcp.json` trong workspace, hoặc vào cấu hình MCP của người dùng.
+- **Windsurf:** [`examples/windsurf_mcp_config.json`](https://github.com/cuong404vn/mcp-leash/blob/main/examples/windsurf_mcp_config.json): gộp mục `mcpServers` vào `~/.codeium/windsurf/mcp_config.json`.
+- **Zed:** [`examples/zed_settings.json`](https://github.com/cuong404vn/mcp-leash/blob/main/examples/zed_settings.json): gộp mục `context_servers` vào file settings của Zed, mở bằng lệnh `zed: open settings file`.
+- **Claude Code:** [`examples/claude_code_mcp.json`](https://github.com/cuong404vn/mcp-leash/blob/main/examples/claude_code_mcp.json): lưu thành `.mcp.json` ở thư mục gốc của dự án.
+
 **3. Xem một lệnh bị chặn.** Khởi động lại client và yêu cầu agent xoá một file trong dự án. Agent sẽ nhận thông báo "Blocked by mcp-leash" như trên, còn audit log (với các mẫu policy là `~/.mcp-leash/audit.jsonl`) ghi lại quyết định. Để thử policy mà không cần client:
 
 ```bash
@@ -147,11 +154,13 @@ rules:
 
 | Lệnh | Công dụng |
 | --- | --- |
-| `mcp-leash run --policy FILE [--project-dir DIR] [--dry-run] -- CMD [ARGS...]` | Chạy proxy và khởi động server thật bằng `CMD` |
+| `mcp-leash run --policy FILE [--project-dir DIR] [--dry-run] [--log-format text\|json] -- CMD [ARGS...]` | Chạy proxy và khởi động server thật bằng `CMD` |
 | `mcp-leash validate FILE` | Kiểm tra file policy. Trả về 0 nếu hợp lệ, 2 nếu không |
 | `mcp-leash check FILE --tool NAME --args JSON` | Đánh giá thử một lệnh gọi và in ra quyết định |
 | `mcp-leash init [--template readonly\|project]` | Ghi policy mẫu ra `mcp-leash.yaml` |
 | `mcp-leash suggest LOG [--policy FILE] [--project-dir DIR]` | In ra policy cho phép những lệnh gọi chưa có rule nào quyết định trong audit log |
+
+Thông tin chẩn đoán của `run` được ghi ra stderr dưới dạng văn bản. Thêm `--log-format json` để mỗi dòng là một object JSON; stdout vẫn chỉ dành cho message của giao thức MCP.
 
 ## Cách hoạt động
 

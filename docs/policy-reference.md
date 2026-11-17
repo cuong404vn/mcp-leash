@@ -213,6 +213,8 @@ Like `starts_with`, this accepts a string or a list of strings. Matching uses Py
   ends_with: '.pem'
 ```
 
+Like `starts_with`, this accepts a string or a list of strings and compares exactly. On Windows, `key.pem.`, `key.pem::$DATA` and `KEY.PEM` all open `key.pem`, so a deny rule on file names should use `matches` with a pattern that allows for those forms, such as `'(?i)\.pem[. ]*(:.*)?$'`.
+
 #### `matches`
 
 ```yaml
@@ -228,7 +230,7 @@ Patterns run on text the agent controls. Avoid nested quantifiers such as `(a+)+
 
 #### Lists of strings
 
-`starts_with`, `ends_with` and `matches` also take an argument that is a list of strings, and check every item. An allow rule needs every item to pass and a deny rule needs only one, as with lists of paths under [`within`](#when-a-value-can-be-read-more-than-one-way); an empty list never matches. With list indexes in `arg`, this covers tools that take a command as a list, such as the shell server in [`policies/shell.yaml`](https://github.com/cuong404vn/mcp-leash/blob/main/policies/shell.yaml):
+`starts_with`, `istarts_with`, `ends_with` and `matches` also take an argument that is a list of strings, and check every item. An allow rule needs every item to pass and a deny rule needs only one, as with lists of paths under [`within`](#when-a-value-can-be-read-more-than-one-way); an empty list never matches. With list indexes in `arg`, this covers tools that take a command as a list, such as the shell server in [`policies/shell.yaml`](https://github.com/cuong404vn/mcp-leash/blob/main/policies/shell.yaml):
 
 ```yaml
 - id: no-chaining
@@ -288,7 +290,7 @@ So `read_multiple_files` with one path outside the project does not match an all
 
 When a condition cannot be evaluated with certainty, the call is denied by the rule being checked, whatever that rule's action is. The reason starts with `Could not evaluate the policy:`. This happens when:
 
-- `starts_with`, `ends_with` or `matches` meets a value that is neither a string nor a list of strings (for example a number, an object, or a list that holds one);
+- `starts_with`, `istarts_with`, `ends_with` or `matches` meets a value that is neither a string nor a list of strings (for example a number, an object, or a list that holds one);
 - `within` meets a value that is neither a string nor a list of strings (for example a number, an object, or a list that holds one);
 - a path contains a NUL byte or cannot be resolved.
 
@@ -297,7 +299,7 @@ When a condition cannot be evaluated with certainty, the call is denied by the r
 `${NAME}` is replaced when the policy loads, in these places:
 
 - `within` directories and `audit.path` (which also expand `~`);
-- string operands of `equals`, `not_equals`, `in`, `starts_with` and `ends_with`.
+- string operands of `equals`, `not_equals`, `in`, `starts_with`, `istarts_with` and `ends_with`.
 
 It is not replaced in `matches` patterns, where `$` and `{` are regex syntax, nor in `id`, `tools` or `reason`.
 
@@ -367,7 +369,7 @@ Redaction applies to the log only. The server receives the arguments unchanged.
 | `mcp-leash init [--template readonly\|project] [--force]` | `0` after writing `mcp-leash.yaml`; `1` if the file exists and `--force` is not given. |
 | `mcp-leash suggest LOG [--policy FILE] [--project-dir DIR]` | `0` after printing a policy; `2` if `LOG` cannot be read or `FILE` is invalid. |
 
-`run` writes only protocol messages to stdout. Diagnostics, including one line per blocked call, go to stderr, which most MCP clients keep in their server logs. They are readable text by default; `--log-format json` writes each as a JSON object with `level` and `message` fields. The format option does not affect the JSON Lines audit log. When the client closes stdin, `run` closes the server's stdin and waits for the server to finish. On SIGINT or SIGTERM it terminates the server. It exits as soon as the server exits.
+`run` writes only protocol messages to stdout. Diagnostics, including one line per blocked call, go to stderr, which most MCP clients keep in their server logs. They are readable text by default; `--log-format json` writes each as a JSON object with `level` and `message` fields. The format option does not affect the JSON Lines audit log. Errors that stop `run` before the server starts, such as an invalid policy or an audit log that cannot be opened, are plain text in both formats. When the client closes stdin, `run` closes the server's stdin and waits for the server to finish. On SIGINT or SIGTERM it terminates the server. It exits as soon as the server exits.
 
 ### `suggest`
 

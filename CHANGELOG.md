@@ -8,10 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- Ready-to-edit stdio MCP configuration examples for VS Code, Windsurf, Zed and Claude Code, with each client's configuration location documented in the README.
-- Add the `istarts_with` policy operator for Unicode case-insensitive string prefixes.
-- `ends_with` condition operator: checks whether a string argument or each item in a list of strings ends with the given suffix.
-- `mcp-leash run --log-format json` to emit stderr diagnostics as one JSON object per line; the default remains readable text.
+- Client config examples for VS Code, Windsurf, Zed and Claude Code in `examples/`, and where each client reads its config in the README.
+- `istarts_with`, a prefix check that ignores case (Unicode case folding), for a string or a list of strings.
+- `ends_with`, a suffix check for a string or a list of strings. It compares exactly, so on Windows a deny rule on file names is better written with `matches`.
+- `mcp-leash run --log-format json` writes stderr diagnostics as one JSON object per line. The default stays plain text, and the audit log is unchanged.
 
 ### Changed
 
