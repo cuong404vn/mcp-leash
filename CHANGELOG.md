@@ -20,6 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Security
 
 - On Windows a file has more names than the one its folder lists: `.env::$DATA`, `.env.` and the short name `ENV~1` all open `.env`. The `.env` and `.git` rule of the `project` template reads the text of the path, so these names got past it and the agent could read both. `within` now refuses such paths on Windows and the call is denied, which covers every policy whose allow rules use `within`. The rule in the `project` template and in `policies/shell.yaml` also matches streams and trailing dots and spaces; if you created your policy with `init`, copy that rule from the new template.
+- `mcp-leash suggest` wrote tool names, argument names and paths from the audit log into YAML comments as they were. A logged value with a line break could add its own rule to the suggested policy. These values are now written on one line with escapes, and `suggest` prints nothing if the result holds a rule it did not write. If you used a suggested policy from 0.1.0, check it for rules you did not expect.
 
 ## [0.1.0] - 2026-10-28
 
