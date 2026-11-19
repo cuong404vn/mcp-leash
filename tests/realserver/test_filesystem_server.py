@@ -248,3 +248,14 @@ def test_audit_log_records_real_calls(client: Client, dirs: tuple[Path, Path]) -
     assert ("tool_call", "allow") in events
     assert ("tool_call", "deny") in events
     assert ("tool_result", None) in events
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows path forms")
+@pytest.mark.parametrize("form", [".env::$DATA", ".env.", ".env "])
+def test_other_windows_names_for_env_are_blocked(
+    client: Client, dirs: tuple[Path, Path], form: str
+) -> None:
+    project, _ = dirs
+    is_error, text = client.call("read_text_file", {"path": f"{project}/{form}"})
+    assert is_error
+    assert text.startswith("Blocked by mcp-leash (rule no-env-or-git-internals)")

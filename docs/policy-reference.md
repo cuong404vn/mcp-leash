@@ -262,6 +262,7 @@ Patterns run on text the agent controls. Avoid nested quantifiers such as `(a+)+
 - Relative paths, in the policy and in the argument, are resolved against the directory mcp-leash starts in.
 - `os.path.realpath` is applied to both sides, so `..` segments and symlinks cannot escape.
 - On Windows the comparison is case-insensitive and `\\?\` prefixes are removed. Elsewhere an allow rule compares names exactly, and a deny rule ignores case and Unicode normalization (see below).
+- On Windows a path must use the plain name of its file. A stream (`notes.txt::$DATA`), a name that ends in a dot or a space (`.env.`) and an 8.3 short name (`GIT~1`) each open a file under another name than the one written. A rule that reads the text of the path would miss the file, so `within` cannot evaluate such a path and the call is denied.
 - A directory matches itself and everything below it. `/project` does not match `/project2`.
 
 Some tools take a list of paths, such as `read_multiple_files` in the official filesystem server. `within` checks every path in the list:
@@ -292,6 +293,7 @@ When a condition cannot be evaluated with certainty, the call is denied by the r
 
 - `starts_with`, `istarts_with`, `ends_with` or `matches` meets a value that is neither a string nor a list of strings (for example a number, an object, or a list that holds one);
 - `within` meets a value that is neither a string nor a list of strings (for example a number, an object, or a list that holds one);
+- on Windows, a path names its file through a stream, a trailing dot or space, or an 8.3 short name;
 - a path contains a NUL byte or cannot be resolved.
 
 ## Variables

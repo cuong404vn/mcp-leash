@@ -101,12 +101,70 @@ def path_candidates(value: str) -> list[str]:
     return candidates
 
 
+_DEVICE_AND_DRIVE = re.compile(r"(?:[\\/]{2}[?.][\\/])?(?:[A-Za-z]:)?")
+_SEPARATORS = re.compile(r"[\\/]+")
+
+
+def windows_alias(path: str) -> str | None:
+    """Say why the text of ``path`` is not the name Windows would open, or return ``None``.
+
+    Windows opens ``.env::$DATA``, ``.env.`` and ``.env`` followed by a space
+    as the file ``.env``, so a rule that reads the text of such a path sees
+    another name than the file system does. Only the text is examined; see
+    :func:`short_name_part` for 8.3 names such as ``ENV~1``.
+    """
+    prefix = _DEVICE_AND_DRIVE.match(path)
+    rest = path[prefix.end() :] if prefix else path
+    if ":" in rest:
+        return "names a stream or a device with ':'"
+    for part in _SEPARATORS.split(rest):
+        if part not in (".", "..") and part.endswith((".", " ")):
+            return "has a name that ends in a dot or a space"
+    return None
+
+
+def short_name_part(path: str) -> str | None:
+    """Return the first part of ``path`` that is a Windows 8.3 short name, such as ``GIT~1``.
+
+    A short name is a second name for a file: it opens the file, but the
+    folder does not list it. Only parts with a ``~`` are looked up.
+    """
+    drive, rest = os.path.splitdrive(os.path.abspath(path))
+    current = drive + os.sep
+    parts: list[str] = [part for part in _SEPARATORS.split(rest) if part]
+    for part in parts:
+        full = os.path.join(current, part)
+        if "~" in part and os.path.lexists(full):
+            try:
+                listed = {name.casefold() for name in os.listdir(current)}
+            except OSError as exc:
+                raise IndeterminateError(f"cannot list {current[:200]!r}: {exc}") from exc
+            if part.casefold() not in listed:
+                return part
+        current = full
+    return None
+
+
+def _refuse_windows_aliases(path: str) -> None:
+    reason = windows_alias(path)
+    if reason is None and (part := short_name_part(path)) is not None:
+        reason = f"uses the short name {part!r}"
+    if reason is not None:
+        raise IndeterminateError(
+            f"path {path[:200]!r} {reason}; use the file's full, plain name instead"
+        )
+
+
 def within(value: str, directories: Sequence[str], *, require_all: bool = True) -> bool:
     """True if ``value`` is inside one of ``directories``.
 
     With ``require_all`` every interpretation of ``value`` (see
     :func:`path_candidates`) must be inside; without it one is enough.
     ``directories`` must already be canonical (see :func:`canonical_path`).
+
+    On Windows a path that names its file in a roundabout way (a stream, a
+    trailing dot or space, an 8.3 short name) cannot be evaluated: rules that
+    read the text of the path would not recognise the file it opens.
 
     Outside Windows the file system may or may not ignore case and Unicode
     normalization (macOS and FAT drives do, most Linux file systems do not),
@@ -116,12 +174,16 @@ def within(value: str, directories: Sequence[str], *, require_all: bool = True) 
     """
     if "\x00" in value:
         raise IndeterminateError("path contains a NUL byte")
+    candidates = path_candidates(value)
+    if IS_WINDOWS:
+        for candidate in candidates:
+            _refuse_windows_aliases(candidate)
     folded = not require_all and not IS_WINDOWS
     if folded:
         directories = [fold(d) for d in directories]
     readings = (
         any(is_inside(fold(path) if folded else path, d) for d in directories)
-        for path in map(canonical_path, path_candidates(value))
+        for path in map(canonical_path, candidates)
     )
     return all(readings) if require_all else any(readings)
 

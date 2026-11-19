@@ -28,12 +28,14 @@ rules:
         matches: '(?i)((api[_-]?key|secret|token|passw(or)?d)["'']?\s*[:=]\s*["'']?[A-Za-z0-9_\-/+=]{12,}|BEGIN [A-Z ]*PRIVATE KEY|\b(gh[pousr]_[A-Za-z0-9]{30,}|sk-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16})\b)'
     reason: Arguments look like they contain a credential.
 
+  # Also the names Windows opens as the same file: a trailing dot or space
+  # (".env.") and a stream (".env::$DATA").
   - id: no-env-or-git-internals
     tools: ['*']
     action: deny
     when:
       - arg: '*'
-        matches: '(?i)(^|[\\/])(\.env(\.[^\\/]*)?|\.git)([\\/]|$)'
+        matches: '(?i)(^|[\\/])(\.env(\.[^\\/]*)?|\.git)[. ]*(:[^\\/]*)?([\\/]|$)'
     reason: .env files and the .git directory are off limits.
 
   # Some servers decode file: URIs and %-escapes, so src/%2e%2e/%2e%2e/x would

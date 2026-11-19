@@ -129,6 +129,10 @@ def test_paths_outside_the_project_are_denied(project: Path, command: list[str])
         ["cat", ".git/config"],
         ["git", "show", "HEAD:.env"],
         ["ls", ".GIT"],
+        ["cat", ".env::$DATA"],
+        ["cat", ".env."],
+        ["cat", ".git./config"],
+        ["git", "show", "HEAD:.env "],
     ],
 )
 def test_env_files_and_git_internals_are_denied(project: Path, command: list[str]) -> None:

@@ -18,9 +18,12 @@ from mcp_leash.policy.matchers import (
     iter_strings,
     json_equal,
     select,
+    short_name_part,
+    windows_alias,
     within,
 )
 from mcp_leash.policy.models import Condition
+from tests.fixtures.short_names import short_name
 
 windows_only = pytest.mark.skipif(sys.platform != "win32", reason="Windows path semantics")
 posix_only = pytest.mark.skipif(sys.platform == "win32", reason="POSIX path semantics")
@@ -368,3 +371,93 @@ def test_within_in_policy_expands_variables(tmp_path: Path) -> None:
     assert evaluate(policy, "t", {"path": str(root / "src" / "x")}).allowed
     assert evaluate(policy, "t", {"path": str(tmp_path / "outside" / "secret.txt")}).allowed
     assert not evaluate(policy, "t", {"path": str(root / "README.md")}).allowed
+
+
+@pytest.mark.parametrize(
+    ("path", "reason"),
+    [
+        (r"C:\proj\.env::$DATA", "stream"),
+        (r"C:\proj\.git::$INDEX_ALLOCATION\config", "stream"),
+        ("proj/notes.txt:hidden", "stream"),
+        ("C:proj/a:b", "stream"),
+        ("//?/C:/proj/a:b", "stream"),
+        ("file:///C:/proj/a.txt", "stream"),
+        (r"C:\proj\.env.", "dot or a space"),
+        (r"C:\proj\.env ", "dot or a space"),
+        ("proj/.git./config", "dot or a space"),
+        ("proj/.git /config", "dot or a space"),
+        ("proj/.../x", "dot or a space"),
+    ],
+)
+def test_windows_alias_names_the_roundabout_form(path: str, reason: str) -> None:
+    assert reason in (windows_alias(path) or "")
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        r"C:\proj\.env",
+        "C:/proj/src/a.py",
+        "C:notes.txt",
+        "//?/C:/proj/src/a.py",
+        "//server/share/a.txt",
+        "./src/../a.txt",
+        "..",
+        "src/",
+        "a b/c.d/e~1.txt",
+        "",
+    ],
+)
+def test_windows_alias_accepts_plain_paths(path: str) -> None:
+    assert windows_alias(path) is None
+
+
+@windows_only
+@pytest.mark.parametrize("require_all", [True, False])
+@pytest.mark.parametrize(
+    "form",
+    [
+        ".env::$DATA",
+        ".env:x",
+        ".env.",
+        ".env ",
+        ".git./config",
+        ".git /config",
+        ".git::$INDEX_ALLOCATION/config",
+    ],
+)
+def test_within_refuses_roundabout_names_on_windows(
+    tmp_path: Path, form: str, require_all: bool
+) -> None:
+    root = project(tmp_path)
+    (root / ".env").write_text("x")
+    with pytest.raises(IndeterminateError, match="plain name"):
+        within(f"{root}/{form}", allowed(root), require_all=require_all)
+
+
+@windows_only
+def test_within_refuses_short_names_on_windows(tmp_path: Path) -> None:
+    root = project(tmp_path)
+    (root / ".git").mkdir()
+    (root / "a long file name.txt").write_text("x")
+    for target, tail in [(root / ".git", "/config"), (root / "a long file name.txt", "")]:
+        alias = short_name(target)
+        if not alias:
+            pytest.skip("this volume keeps no 8.3 short names")
+        path = f"{root}/{alias}{tail}"
+        assert short_name_part(path) == alias
+        for require_all in [True, False]:
+            with pytest.raises(IndeterminateError, match="short name"):
+                within(path, allowed(root), require_all=require_all)
+    # A tilde in a file's own name is fine, whether or not the file exists yet.
+    (root / "notes~1.txt").write_text("x")
+    assert within(str(root / "notes~1.txt"), allowed(root))
+    assert within(str(root / "new~2.txt"), allowed(root))
+    assert within(str(root / "new~dir" / "a.txt"), allowed(root))
+
+
+@posix_only
+def test_windows_forms_are_plain_names_outside_windows(tmp_path: Path) -> None:
+    root = project(tmp_path)
+    for name in ["a:b", ".env::$DATA", "trailing.", "trailing ", "GIT~1"]:
+        assert within(str(root / name), allowed(root)), name

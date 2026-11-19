@@ -47,7 +47,7 @@ rules:
     action: deny
     when:
       - arg: command
-        matches: '(?i)(^|[\\/:=])(\.env(\.[^\\/]*)?|\.git)([\\/]|$)'
+        matches: '(?i)(^|[\\/:=])(\.env(\.[^\\/]*)?|\.git)[. ]*(:[^\\/]*)?([\\/]|$)'
     reason: .env files and the .git directory are off limits.
 
   # Absolute paths (/etc, ~/x, C:\x, \\server\share), also after "=", and any

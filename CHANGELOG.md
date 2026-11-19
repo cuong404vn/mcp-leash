@@ -17,6 +17,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Policy validation and variable-expansion errors now include the YAML line and column when available.
 
+### Security
+
+- On Windows a file has more names than the one its folder lists: `.env::$DATA`, `.env.` and the short name `ENV~1` all open `.env`. The `.env` and `.git` rule of the `project` template reads the text of the path, so these names got past it and the agent could read both. `within` now refuses such paths on Windows and the call is denied, which covers every policy whose allow rules use `within`. The rule in the `project` template and in `policies/shell.yaml` also matches streams and trailing dots and spaces; if you created your policy with `init`, copy that rule from the new template.
+
 ## [0.1.0] - 2026-10-28
 
 First release: a stdio proxy that checks every MCP `tools/call` against a YAML policy. Install it from GitHub with `uv tool install git+https://github.com/cuong404vn/mcp-leash@v0.1.0`. It is not published to PyPI.

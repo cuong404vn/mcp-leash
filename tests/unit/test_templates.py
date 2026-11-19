@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import functools
+import sys
 from pathlib import Path
 from typing import Any
 
 import pytest
 
 from mcp_leash.policy import Policy, evaluate, parse_policy
+from tests.fixtures.short_names import short_name
 
 TEMPLATES = Path(__file__).parents[2] / "src" / "mcp_leash" / "templates"
 
@@ -80,6 +82,61 @@ def test_project_template_blocks_env_and_git(relative: str, project: Path) -> No
     paths = [str(project / "a.txt"), str(project / relative)]
     decision = evaluate(template("project", project), "read_multiple_files", {"paths": paths})
     assert decision.rule == "no-env-or-git-internals"
+
+
+WINDOWS_FORMS = [
+    ".env::$DATA",
+    ".env.",
+    ".env ",
+    ".env.local::$DATA",
+    ".ENV:stream",
+    ".git./config",
+    ".git /config",
+    ".git::$INDEX_ALLOCATION/config",
+    "sub/.git:x/HEAD",
+]
+
+
+@pytest.mark.parametrize("relative", WINDOWS_FORMS)
+def test_project_template_blocks_other_windows_names_for_env_and_git(
+    relative: str, project: Path
+) -> None:
+    path = f"{project}/{relative}"
+    calls: list[tuple[str, dict[str, Any]]] = [
+        ("read_text_file", {"path": path}),
+        ("write_file", {"path": path, "content": "x"}),
+        ("read_multiple_files", {"paths": [str(project / "a.txt"), path]}),
+        ("move_file", {"source": str(project / "a.txt"), "destination": path}),
+    ]
+    for tool, arguments in calls:
+        decision = evaluate(template("project", project), tool, arguments)
+        assert decision.rule == "no-env-or-git-internals", tool
+
+
+@pytest.mark.parametrize(
+    "relative", [".gitignore", ".github/workflows/ci.yml", ".envrc", "src/.gitkeep", "docs/git.md"]
+)
+def test_project_template_allows_names_that_only_start_like_env_or_git(
+    relative: str, project: Path
+) -> None:
+    arguments = {"path": str(project / relative)}
+    assert evaluate(template("project", project), "read_text_file", arguments).allowed
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows 8.3 short names")
+@pytest.mark.parametrize("name", ["readonly", "project"])
+def test_templates_refuse_windows_short_names(name: str, tmp_path: Path) -> None:
+    root = tmp_path / "project"
+    (root / ".git").mkdir(parents=True)
+    alias = short_name(root / ".git")
+    if not alias:
+        pytest.skip("this volume keeps no 8.3 short names")
+    policy = parse_policy(
+        (TEMPLATES / f"{name}.yaml").read_text(encoding="utf-8"), project_dir=str(root), env={}
+    )
+    decision = evaluate(policy, "read_text_file", {"path": f"{root}/{alias}/config"})
+    assert not decision.allowed
+    assert "short name" in (decision.reason or "")
 
 
 def resolve(value: Any, project: Path) -> Any:
