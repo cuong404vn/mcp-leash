@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `not_matches`, a regular-expression operator that requires a string not to match a pattern.
 - Client config examples for VS Code, Windsurf, Zed and Claude Code in `examples/`, and where each client reads its config in the README.
 - `istarts_with`, a prefix check that ignores case (Unicode case folding), for a string or a list of strings.
 - `ends_with`, a suffix check for a string or a list of strings. It compares exactly, so on Windows a deny rule on file names is better written with `matches`.

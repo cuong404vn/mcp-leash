@@ -28,6 +28,7 @@ OPERATORS = (
     "istarts_with",
     "ends_with",
     "matches",
+    "not_matches",
     "within",
 )
 DEFAULT_REDACT_KEYS = ["token", "password", "api_key", "authorization", "secret"]
@@ -51,6 +52,7 @@ class Condition(_Strict):
     istarts_with: StrictStr | None = None
     ends_with: StrictStr | None = None
     matches: StrictStr | None = None
+    not_matches: StrictStr | None = None
     within: list[StrictStr] | None = Field(default=None, min_length=1)
 
     @model_validator(mode="after")
@@ -62,9 +64,13 @@ class Condition(_Strict):
                 f"condition on {self.arg!r} needs exactly one operator "
                 f"({', '.join(OPERATORS)}); found {found}"
             )
+        if self.arg == "*" and self.not_matches is not None:
+            raise ValueError(
+                "not_matches cannot be used with arg: '*'; use a deny rule with matches instead"
+            )
         return self
 
-    @field_validator("matches")
+    @field_validator("matches", "not_matches")
     @classmethod
     def _valid_regex(cls, value: str | None) -> str | None:
         if value is not None:

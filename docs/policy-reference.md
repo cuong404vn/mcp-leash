@@ -170,6 +170,7 @@ Quote `'*'` in YAML, because a bare `*` starts an alias.
 | `istarts_with` | string | The value is a string, or a list of strings, with this prefix after Unicode case folding. |
 | `ends_with` | string | The value is a string, or a list of strings, with this suffix. |
 | `matches` | regular expression | Python `re.search` finds the pattern in the string value, or in the items of a list of strings. |
+| `not_matches` | regular expression | Python `re.search` does not find the pattern in the string value, or in any item of a list of strings. |
 | `within` | non-empty list of directories | The value is a path, or a list of paths, inside the directories. |
 
 #### `equals` and `not_equals`
@@ -228,9 +229,20 @@ The pattern uses Python [`re`](https://docs.python.org/3/library/re.html) syntax
 
 Patterns run on text the agent controls. Avoid nested quantifiers such as `(a+)+`, which can take a very long time on crafted input.
 
+#### `not_matches`
+
+```yaml
+- arg: branch
+  not_matches: '^(main|release)$'
+```
+
+`not_matches` is the inverse of `matches`: the condition holds when `re.search` finds no match. It uses the same Python regular-expression syntax, validation, anchoring and performance considerations.
+
+Note: A missing argument makes the condition evaluate to `false`, so a `deny` rule with `not_matches` does not fire when the argument is absent.
+
 #### Lists of strings
 
-`starts_with`, `istarts_with`, `ends_with` and `matches` also take an argument that is a list of strings, and check every item. An allow rule needs every item to pass and a deny rule needs only one, as with lists of paths under [`within`](#when-a-value-can-be-read-more-than-one-way); an empty list never matches. With list indexes in `arg`, this covers tools that take a command as a list, such as the shell server in [`policies/shell.yaml`](https://github.com/cuong404vn/mcp-leash/blob/main/policies/shell.yaml):
+`starts_with`, `istarts_with`, `ends_with`, `matches` and `not_matches` also take an argument that is a list of strings, and check every item. An allow rule needs every item to pass and a deny rule needs only one, as with lists of paths under [`within`](#when-a-value-can-be-read-more-than-one-way); an empty list never matches. With list indexes in `arg`, this covers tools that take a command as a list, such as the shell server in [`policies/shell.yaml`](https://github.com/cuong404vn/mcp-leash/blob/main/policies/shell.yaml):
 
 ```yaml
 - id: no-chaining
@@ -291,7 +303,7 @@ So `read_multiple_files` with one path outside the project does not match an all
 
 When a condition cannot be evaluated with certainty, the call is denied by the rule being checked, whatever that rule's action is. The reason starts with `Could not evaluate the policy:`. This happens when:
 
-- `starts_with`, `istarts_with`, `ends_with` or `matches` meets a value that is neither a string nor a list of strings (for example a number, an object, or a list that holds one);
+- `starts_with`, `istarts_with`, `ends_with`, `matches` or `not_matches` meets a value that is neither a string nor a list of strings (for example a number, an object, or a list that holds one);
 - `within` meets a value that is neither a string nor a list of strings (for example a number, an object, or a list that holds one);
 - on Windows, a path names its file through a stream, a trailing dot or space, or an 8.3 short name;
 - a path contains a NUL byte or cannot be resolved.
@@ -303,7 +315,7 @@ When a condition cannot be evaluated with certainty, the call is denied by the r
 - `within` directories and `audit.path` (which also expand `~`);
 - string operands of `equals`, `not_equals`, `in`, `starts_with`, `istarts_with` and `ends_with`.
 
-It is not replaced in `matches` patterns, where `$` and `{` are regex syntax, nor in `id`, `tools` or `reason`.
+It is not replaced in `matches` or `not_matches` patterns, where `$` and `{` are regex syntax, nor in `id`, `tools` or `reason`.
 
 | Variable | Value |
 | --- | --- |

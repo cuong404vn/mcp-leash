@@ -150,7 +150,7 @@ rules:
         within: ['${PROJECT_DIR}']
 ```
 
-Conditions support `equals`, `not_equals`, `in`, `starts_with`, `istarts_with` (Unicode case-insensitive prefix), `ends_with`, `matches` (regex) and `within` (path containment that resolves `..` and symlinks). Every field and operator is described in the [policy reference](https://github.com/cuong404vn/mcp-leash/blob/main/docs/policy-reference.md).
+Conditions support `equals`, `not_equals`, `in`, `starts_with`, `istarts_with` (Unicode case-insensitive prefix), `ends_with`, `matches` and `not_matches` (regex) and `within` (path containment that resolves `..` and symlinks). Every field and operator is described in the [policy reference](https://github.com/cuong404vn/mcp-leash/blob/main/docs/policy-reference.md).
 
 | Command | Purpose |
 | --- | --- |

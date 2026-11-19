@@ -54,7 +54,7 @@ def cond(**fields: Any) -> Condition:
         ({"arg": "a", "in": ["x", 2, True]}, {"a": "x"}, True),
         ({"arg": "a", "in": ["x", 2]}, {"a": True}, False),
         ({"arg": "a", "in": []}, {"a": "x"}, False),
-        # starts_with / istarts_with / ends_with / matches
+        # starts_with / istarts_with / ends_with / matches / not_matches
         ({"arg": "a", "starts_with": "/tmp/"}, {"a": "/tmp/x"}, True),
         ({"arg": "a", "starts_with": "/tmp/"}, {"a": "/tmpx"}, False),
         ({"arg": "a", "istarts_with": "/TMP/"}, {"a": "/tmp/x"}, True),
@@ -64,6 +64,8 @@ def cond(**fields: Any) -> Condition:
         ({"arg": "a", "matches": "^rm\\b"}, {"a": "rm -rf /"}, True),
         ({"arg": "a", "matches": "(?i)secret"}, {"a": "my SECRET"}, True),
         ({"arg": "a", "matches": "^ls$"}, {"a": "ls -la"}, False),
+        ({"arg": "a", "not_matches": "^rm\\b"}, {"a": "ls -la"}, True),
+        ({"arg": "a", "not_matches": "^rm\\b"}, {"a": "rm -rf /"}, False),
         # missing arguments make every operator false
         ({"arg": "a", "equals": "x"}, {}, False),
         ({"arg": "a", "not_equals": "x"}, {}, False),
@@ -71,6 +73,7 @@ def cond(**fields: Any) -> Condition:
         ({"arg": "a", "starts_with": "x"}, {}, False),
         ({"arg": "a", "ends_with": ".pem"}, {}, False),
         ({"arg": "a", "matches": "."}, {"b": "x"}, False),
+        ({"arg": "a", "not_matches": "."}, {"b": "x"}, False),
         ({"arg": "a", "within": ["/"]}, {}, False),
         # nested paths
         ({"arg": "options.mode", "equals": "x"}, {"options": {"mode": "x"}}, True),
@@ -90,7 +93,9 @@ def test_condition_holds(condition: dict[str, Any], arguments: Any, expected: bo
     assert condition_holds(cond(**condition), arguments) is expected
 
 
-@pytest.mark.parametrize("operator", ["starts_with", "istarts_with", "ends_with", "matches"])
+@pytest.mark.parametrize(
+    "operator", ["starts_with", "istarts_with", "ends_with", "matches", "not_matches"]
+)
 @pytest.mark.parametrize("value", [1, None, ["x", 1], [["x"]], {"x": "y"}, True])
 def test_string_operators_reject_non_strings(operator: str, value: Any) -> None:
     with pytest.raises(IndeterminateError, match="needs a string or a list of strings"):
@@ -112,6 +117,10 @@ def test_string_operators_reject_non_strings(operator: str, value: Any) -> None:
         ({"ends_with": ".pem"}, [], False, False),
         ({"matches": "^-"}, ["-v", "--all"], True, True),
         ({"matches": "^-"}, ["status", "-v"], False, True),
+        ({"not_matches": "^-"}, ["a", "b"], True, True),
+        ({"not_matches": "^-"}, ["a", "-v"], False, True),
+        ({"not_matches": "^-"}, ["-a", "-v"], False, False),
+        ({"not_matches": "."}, [], False, False),
         ({"matches": "."}, [], False, False),
     ],
 )
