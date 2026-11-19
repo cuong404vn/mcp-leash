@@ -379,7 +379,8 @@ Redaction applies to the log only. The server receives the arguments unchanged.
 - Each such tool gets one allow rule, `allow-<tool>`. Every argument whose name says it holds a path (`path`, `paths`, `source`, `destination`, `directory`, `cwd`, or a name ending in `path`, `_dir`, `_file` and similar) gets `within: ['${PROJECT_DIR}']`, whatever paths the log shows. Comments above the rule say how many logged values were outside the project and how many calls did not pass the argument; the rule blocks both.
 - With `--policy`, that policy's settings and rules come first, unchanged except that their comments are not kept, and the new rules follow them, so its deny rules still win. The default is always `deny`.
 - `--project-dir` should be the one `run` used, so relative paths in the log are read the same way.
-- The output is validated before it is printed. Read it before you use it: it allows what the agent did, not what it should do.
+- The comments quote tool names, argument names and paths from the log, which the agent chose. Line breaks and other unprintable characters in them are written as escapes such as `\n`, and long paths are cut, so a logged value cannot become a line of the policy.
+- The output is validated before it is printed, and nothing is printed if it holds a rule that `suggest` did not write. Read it before you use it: it allows what the agent did, not what it should do.
 
 ## YAML pitfalls
 

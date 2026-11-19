@@ -226,9 +226,18 @@ def suggest(
         raise _fail(f"cannot read the audit log {str(log)!r}: {exc.strerror}") from exc
     text = render(summary, source=log.name, base=base, base_name=policy.name if policy else None)
     try:
-        parse_policy(text, project_dir=project)
+        suggested = parse_policy(text, project_dir=project)
     except PolicyError as exc:  # a bug in suggest, not in the user's input
         raise _fail(f"the suggested policy is not valid; please report this:\n{exc}", 1) from exc
+    # The log holds values the agent chose. If one of them ever became a rule
+    # of its own, the count would be off, and nothing is printed.
+    expected = len((base or {}).get("rules") or []) + len(summary.undecided)
+    if len(suggested.rules) != expected:
+        raise _fail(
+            f"the suggested policy has {len(suggested.rules)} rules where {expected} were"
+            " expected; please report this",
+            1,
+        )
     typer.echo(text, nl=False)
     if not summary.undecided:
         typer.echo("mcp-leash: no call fell to the default rule; nothing to add", err=True)

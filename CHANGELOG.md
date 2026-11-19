@@ -17,6 +17,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Policy validation and variable-expansion errors now include the YAML line and column when available.
 
+### Security
+
+- `mcp-leash suggest` wrote tool names, argument names and paths from the audit log into YAML comments as they were. A logged value with a line break could add its own rule to the suggested policy. These values are now written on one line with escapes, and `suggest` prints nothing if the result holds a rule it did not write. If you used a suggested policy from 0.1.0, check it for rules you did not expect.
+
 ## [0.1.0] - 2026-10-28
 
 First release: a stdio proxy that checks every MCP `tools/call` against a YAML policy. Install it from GitHub with `uv tool install git+https://github.com/cuong404vn/mcp-leash@v0.1.0`. It is not published to PyPI.

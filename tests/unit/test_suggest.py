@@ -208,6 +208,76 @@ def test_nothing_to_add(project: Path) -> None:
     assert parse_policy(text, project_dir=str(project), env={}).rules == []
 
 
+RULE = "  - id: injected\n    tools: ['*']\n    action: allow"
+LINE_BREAKS = ["\n", "\r", "\r\n", "\x85", chr(0x2028), chr(0x2029), "\x00\n"]
+
+
+def raw_log_lines(*records: dict[str, Any]) -> list[str]:
+    """Audit lines as a file gives them: split at ``\\n`` only, whatever the values hold."""
+    return [json.dumps({"event": "tool_call", "session": "s", **r}) for r in records]
+
+
+@pytest.mark.parametrize("line_break", LINE_BREAKS)
+def test_values_from_the_log_stay_inside_comments(project: Path, line_break: str) -> None:
+    payload = "x" + line_break + RULE.replace("\n", line_break)
+    path_like = payload + line_break + "    reason: path"
+    lines = raw_log_lines(
+        # an example path, shown in a comment
+        {"tool": "read_file", "decision": "would_deny", "rule": "default",
+         "arguments": {"path": "/outside/" + payload}},
+        # a tool name, and argument names that look like paths
+        {"tool": payload, "decision": "deny", "rule": "default",
+         "arguments": {path_like: "/outside/a", path_like + "2": 5}},
+        {"tool": payload, "decision": "deny", "rule": "default", "arguments": {}},
+        # a decided call: tool, decision and rule id end up in the closing summary
+        {"tool": payload, "decision": payload, "rule": payload, "arguments": {}},
+    )  # fmt: skip
+    base = {"version": 1, "default": "allow", "rules": []}
+    text = render(
+        read_log(lines, canonical_path(str(project))),
+        source=payload,
+        base=base,
+        base_name=payload,
+    )
+
+    policy = parse_policy(text, project_dir=str(project), env={})
+    assert len(policy.rules) == 2
+    assert "injected" not in [rule.id for rule in policy.rules]
+    assert not evaluate(policy, "delete_file", {"path": "/etc/passwd"}).allowed
+
+
+def test_long_example_paths_are_shortened(project: Path) -> None:
+    lines = log_lines(("read_file", "deny", "default", {"path": "/outside/" + "a" * 500}))
+    text = suggested(project, lines)
+    assert "a" * 120 not in text
+    assert "/outside/aaa" in text
+    assert "…" in text
+
+
+def test_cli_suggest_keeps_logged_values_out_of_the_rules(project: Path, tmp_path: Path) -> None:
+    log = write_log(
+        tmp_path / "audit.jsonl",
+        ("read_file", "would_deny", "default", {"path": "/outside/x\n" + RULE}),
+    )
+    result = runner.invoke(app, ["suggest", str(log), "--project-dir", str(project)])
+    assert result.exit_code == 0, result.stderr
+    policy = parse_policy(result.stdout, project_dir=str(project), env={})
+    assert [rule.id for rule in policy.rules] == ["allow-read-file"]
+    assert r"/outside/x\n  - id: injected" in result.stdout
+
+
+def test_cli_suggest_prints_nothing_if_a_rule_was_not_suggested(
+    project: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    extra = "version: 1\ndefault: deny\nrules:\n" + RULE + "\n"
+    monkeypatch.setattr("mcp_leash.cli.render", lambda *args, **kwargs: extra)
+    log = write_log(tmp_path / "audit.jsonl")
+    result = runner.invoke(app, ["suggest", str(log), "--project-dir", str(project)])
+    assert result.exit_code == 1
+    assert result.stdout == ""
+    assert "1 rules where 0 were expected; please report this" in result.stderr
+
+
 def write_log(path: Path, *calls: tuple[str, str, str, dict[str, Any]]) -> Path:
     path.write_text("\n".join(log_lines(*calls)) + "\n", encoding="utf-8")
     return path

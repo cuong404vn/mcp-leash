@@ -25,6 +25,7 @@ PATH_NAMES = frozenset(
 )
 PATH_SUFFIXES = ("path", "paths", "_dir", "_directory", "_file", "_folder")
 MAX_EXAMPLES = 3
+MAX_EXAMPLE_LENGTH = 120
 DEFAULT_AUDIT: dict[str, Any] = {
     "path": "~/.mcp-leash/audit.jsonl",
     "redact_keys": list(DEFAULT_REDACT_KEYS),
@@ -153,6 +154,23 @@ def _plural(count: int, word: str) -> str:
     return f"{count} {word}" if count == 1 else f"{count} {word}s"
 
 
+def _comment(text: str) -> str:
+    """One YAML comment line. Line breaks and other unprintable characters become escapes.
+
+    Comments quote tool names, argument names and paths from the log, and the
+    agent chose those. A raw line break would end the comment, and the rest of
+    the value would be read as part of the policy.
+    """
+    shown = "".join(
+        ch if ch.isprintable() else ch.encode("unicode_escape").decode("ascii") for ch in text
+    )
+    return f"# {shown}"
+
+
+def _shorten(text: str) -> str:
+    return text if len(text) <= MAX_EXAMPLE_LENGTH else text[:MAX_EXAMPLE_LENGTH] + "…"
+
+
 class _Dumper(yaml.SafeDumper):
     """Writes YAML like the shipped policies: block mappings, indented block
     lists, and lists of plain values on one line."""
@@ -180,7 +198,7 @@ def _dump(value: Any) -> list[str]:
 
 
 def _suggested_rule(tool: str, usage: ToolUsage, taken: set[str]) -> list[str]:
-    comments = [f"# {tool}: {_plural(usage.calls, 'call')} that no rule decided."]
+    comments = [_comment(f"{tool}: {_plural(usage.calls, 'call')} that no rule decided.")]
     rule: dict[str, Any] = {"id": _rule_id(tool, taken), "tools": [_escape_glob(tool)]}
     rule["action"] = "allow"
     paths = usage.path_arguments()
@@ -188,16 +206,22 @@ def _suggested_rule(tool: str, usage: ToolUsage, taken: set[str]) -> list[str]:
         rule["when"] = [{"arg": name, "within": ["${PROJECT_DIR}"]} for name in paths]
     for name in paths:
         if usage.outside[name]:
-            shown = ", ".join(usage.examples[name])
+            shown = ", ".join(_shorten(example) for example in usage.examples[name])
             comments.append(
-                f"# {_plural(usage.outside[name], name + ' value')} outside the project,"
-                f" which this rule blocks: {shown}"
+                _comment(
+                    f"{_plural(usage.outside[name], name + ' value')} outside the project,"
+                    f" which this rule blocks: {shown}"
+                )
             )
         missing = usage.calls - usage.seen[name]
         if missing:
-            comments.append(f"# {_plural(missing, 'call')} without {name} would be blocked.")
+            comments.append(
+                _comment(f"{_plural(missing, 'call')} without {name} would be blocked.")
+            )
     for name in sorted(n for n in usage.seen if is_path_argument(n) and n not in paths):
-        comments.append(f"# {name} looks like a path but is not checked: it held other values.")
+        comments.append(
+            _comment(f"{name} looks like a path but is not checked: it held other values.")
+        )
     return comments + _dump([rule])
 
 
@@ -212,16 +236,22 @@ def render(
     rule per tool that no rule decided. The default is always ``deny``."""
     base = base or {}
     lines = [
-        f"# Suggested by `mcp-leash suggest` from {source}: "
-        f"{_plural(summary.calls, 'tool call')} in {_plural(len(summary.sessions), 'session')}.",
+        _comment(
+            f"Suggested by `mcp-leash suggest` from {source}: "
+            f"{_plural(summary.calls, 'tool call')} in {_plural(len(summary.sessions), 'session')}."
+        ),
         "# Each tool that no rule decided gets an allow rule, with path arguments kept",
         "# inside ${PROJECT_DIR}. It allows what the agent did, not what it should do:",
         "# review every rule before you use it.",
     ]
     if base_name is not None:
-        lines.append(f"# The rules of {base_name} come first, unchanged (without their comments).")
+        lines.append(
+            _comment(f"The rules of {base_name} come first, unchanged (without their comments).")
+        )
         if base.get("default") == "allow":
-            lines.append(f"# {base_name} used default: allow; this policy uses default: deny.")
+            lines.append(
+                _comment(f"{base_name} used default: allow; this policy uses default: deny.")
+            )
     if summary.skipped_lines:
         lines.append(f"# {_plural(summary.skipped_lines, 'line')} of the log could not be read.")
 
@@ -250,5 +280,5 @@ def render(
     if summary.decided:
         lines.append("# Calls that a rule already decided (left as they are):")
         for (tool, decision, rule_id), count in sorted(summary.decided.items()):
-            lines.append(f"#   {tool}: {_plural(count, 'call')}, {decision} by {rule_id}")
+            lines.append(_comment(f"  {tool}: {_plural(count, 'call')}, {decision} by {rule_id}"))
     return "\n".join(lines).rstrip("\n") + "\n"
